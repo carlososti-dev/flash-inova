@@ -3,6 +3,7 @@
 Fatia 1: base para vários hospitais, login por e-mail e identidade de cada hospital.
 Fatia 2: lista de autorizados, primeiro acesso por matrícula e e-mail, gestão de usuários.
 Fatia 3: campanhas (datas das fases, linhas de ideias, textos, banner, vídeo, regulamento e regras) e a página inicial da campanha.
+Fatia 4: envio de ideias (formulário configurável, rascunho e envio, coautores, aceite do regulamento), Minhas ideias e o kanban da Classificação.
 
 - **Backend**: Python, FastAPI, SQLAlchemy, PostgreSQL (`backend/`)
 - **Frontend**: React + Vite + TypeScript (`frontend/`)
@@ -25,6 +26,12 @@ Fatia 3: campanhas (datas das fases, linhas de ideias, textos, banner, vídeo, r
 - **Linhas de ideias (temáticas)**: até 5 ativas por campanha, com descrição opcional, ordem ajustável, desativar e reativar. A campanha só é publicada com pelo menos uma linha ativa.
 - **Rascunho e publicação**: só campanhas publicadas aparecem para os colaboradores; o administrador pré-visualiza o rascunho em "Ver página". Rascunho pode ser excluído; campanha publicada, não.
 - **Página inicial da campanha**: banner (ou o título sobre a cor do hospital), período de inscrição ou "Inscrições de projetos encerradas", vídeo, dicas, temáticas, calendário das fases, link para o regulamento e botão "Enviar projeto", liberado só durante as inscrições. Mostra a campanha publicada mais recente que ainda não foi encerrada.
+- **Formulário de envio configurável** (Administração > Campanhas > Formulário de envio): título, linha de ideias e resumo fixos; campos de texto curto, texto longo, lista de opções, sim/não e anexo, com rótulo, ajuda, obrigatório e ordem. Campo com respostas só é desativado.
+- **Envio de ideias**: "Salvar rascunho" (só o autor vê) e "Enviar" (só durante as inscrições). A ideia enviada ganha um número (#1, #2…) e pode ser editada até o fim das inscrições, sem ficar incompleta. Anexos (PDF, imagem, Word, Excel, PowerPoint, até 10 MB) ficam fora da pasta pública e só saem pela API, para quem pode ver a ideia.
+- **Coautores** da lista de autorizados (busca por nome ou matrícula, até 10); veem a ideia depois de enviada, sem editar.
+- **Aceite do regulamento**: obrigatório para enviar; cada texto salvo do regulamento vira uma versão, e a ideia guarda a versão aceita e a data.
+- **Minhas ideias**: as ideias da pessoa (autora ou coautora) e a etapa de cada uma.
+- **Classificação (kanban)** para administrador, consultor e gestor: colunas Recebidas → Em análise → Empate → Classificadas / Talvez / Não classificadas → Shortlist → Selecionadas → Premiadas. Os cartões não são arrastados; mudam pelas ações do processo (nesta fatia, só "Recebidas" recebe cartões).
 
 ## Rodar localmente
 
@@ -74,5 +81,4 @@ Cobrem: importação da lista (conferência, erros por linha, XLSX, reimportaç�
 
 ## Próximas fatias
 
-4. Envio de ideias (formulário do projeto).
 Depois: distribuição duplo-cego, análise, classificação, defesa, votação e resultados.

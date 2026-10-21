@@ -49,8 +49,9 @@ export function useSubmit<T>(action: () => Promise<T>) {
 // Menu conforme a especificação da página Início.
 const MENU: { to: string; label: string; roles: Role[] | 'all' }[] = [
   { to: '/', label: 'Início', roles: 'all' },
+  { to: '/minhas-ideias', label: 'Minhas ideias', roles: 'all' },
   { to: '/analise', label: 'Análise', roles: ['administrador', 'consultor', 'membro_comite'] },
-  { to: '/classificacao', label: 'Classificação', roles: ['administrador', 'consultor'] },
+  { to: '/classificacao', label: 'Classificação', roles: ['administrador', 'consultor', 'gestor'] },
   { to: '/administracao', label: 'Administração', roles: ['administrador', 'consultor'] },
 ]
 

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  api, fmtDate, PHASE_LABELS, type CampaignAdmin, type CampaignLine, type CampaignSummary, type SubmissionState,
+  api, fmtDate, FIELD_KIND_LABELS, PHASE_LABELS, type CampaignAdmin, type CampaignLine,
+  type CampaignSummary, type FieldKind, type SubmissionState,
 } from '../api'
 import { Notice, useSubmit } from '../components'
 
@@ -174,6 +175,7 @@ function CampaignEditor({ id, onClose }: { id: string; onClose: () => void }) {
       {ok && <Notice kind="ok">{ok}</Notice>}
 
       <Lines campaign={c} onChange={setC} onError={setError} />
+      <FormFields campaign={c} onChange={setC} onError={setError} />
       <Banner campaign={c} call={call} />
 
       <form className="stack" onSubmit={onSubmit}>
@@ -210,6 +212,10 @@ function CampaignEditor({ id, onClose }: { id: string; onClose: () => void }) {
 
         <section className="card form">
           <h2>Regulamento</h2>
+          <p className="muted">
+            Quem envia uma ideia precisa aceitar este texto (cessão de direitos e uso dos dados); o aceite fica gravado com a data e a versão.
+            Cada alteração salva gera uma nova versão. {c.regulation_version ? `Versão atual: ${c.regulation_version}.` : 'Sem regulamento, as ideias não podem ser enviadas.'}
+          </p>
           <label>Texto do regulamento<textarea rows={12} maxLength={100000} value={draft.regulation_text} onChange={set('regulation_text')} /></label>
         </section>
 
@@ -327,5 +333,105 @@ function LineEdit({ line, onSave, onCancel }: { line: CampaignLine; onSave: (b: 
         </div>
       </form>
     </li>
+  )
+}
+
+/* ---------------- Campos do formulário de envio ---------------- */
+
+const KINDS = Object.keys(FIELD_KIND_LABELS) as FieldKind[]
+
+interface FieldDraft { kind: FieldKind; label: string; help_text: string; required: boolean; options: string }
+const emptyField: FieldDraft = { kind: 'texto_longo', label: '', help_text: '', required: false, options: '' }
+const optionList = (text: string) => text.split('\n').map((o) => o.trim()).filter(Boolean)
+
+function FormFields({ campaign, onChange, onError }: { campaign: CampaignAdmin; onChange: (c: CampaignAdmin) => void; onError: (m: string | null) => void }) {
+  const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<string | null>(null)
+  const fields = campaign.fields
+  const base = '/api/admin/campaign-fields'
+
+  async function run(action: () => Promise<CampaignAdmin>) {
+    onError(null)
+    try { onChange(await action()); return true }
+    catch (e) { onError(errText(e)); return false }
+  }
+  function move(index: number, delta: number) {
+    const ids = fields.map((f) => f.id)
+    const [item] = ids.splice(index, 1)
+    ids.splice(index + delta, 0, item)
+    run(() => api<CampaignAdmin>(`/api/admin/campaigns/${campaign.id}/fields/order`, { method: 'PUT', json: { ids } }))
+  }
+  const payload = (d: FieldDraft) => ({
+    label: d.label, help_text: d.help_text || null, required: d.required, options: d.kind === 'lista' ? optionList(d.options) : null,
+  })
+
+  return (
+    <section className="card">
+      <h2>Formulário de envio</h2>
+      <p className="muted">
+        Título, linha de ideias e resumo são fixos e sempre obrigatórios. Acrescente aqui as demais perguntas.
+        Um campo que já tem respostas não pode ser excluído, só desativado.
+      </p>
+      <ol className="lines">
+        <li className="row-fixed"><div className="line-text"><strong>Título · Linha de ideias · Resumo</strong><small className="muted">campos fixos</small></div></li>
+        {fields.map((f, i) => editing === f.id
+          ? <FieldEdit key={f.id} initial={{ kind: f.kind, label: f.label, help_text: f.help_text ?? '', required: f.required, options: (f.options ?? []).join('\n') }}
+              kindLocked onCancel={() => setEditing(null)}
+              onSave={async (d) => { if (await run(() => api<CampaignAdmin>(`${base}/${f.id}`, { method: 'PATCH', json: payload(d) }))) setEditing(null) }} />
+          : (
+            <li key={f.id} className={f.is_active ? '' : 'row-off'}>
+              <div className="line-text">
+                <strong>{f.label}{f.required && <span className="req">*</span>}</strong>
+                <small className="muted">
+                  {FIELD_KIND_LABELS[f.kind]}{f.kind === 'lista' && f.options && `: ${f.options.join(', ')}`}
+                  {f.answers > 0 && ` · ${f.answers} ${f.answers === 1 ? 'resposta' : 'respostas'}`}
+                  {!f.is_active && ' · inativo'}
+                </small>
+                {f.help_text && <small className="muted">{f.help_text}</small>}
+              </div>
+              <div className="line-actions">
+                <button className="btn btn-ghost btn-sm" aria-label="Subir" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
+                <button className="btn btn-ghost btn-sm" aria-label="Descer" disabled={i === fields.length - 1} onClick={() => move(i, 1)}>↓</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditing(f.id)}>Editar</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => run(() => api<CampaignAdmin>(`${base}/${f.id}`, { method: 'PATCH', json: { is_active: !f.is_active } }))}>
+                  {f.is_active ? 'Desativar' : 'Reativar'}
+                </button>
+                {f.answers === 0 && <button className="btn btn-ghost btn-sm btn-danger" onClick={() => window.confirm(`Excluir o campo "${f.label}"?`) && run(() => api<CampaignAdmin>(`${base}/${f.id}`, { method: 'DELETE' }))}>Excluir</button>}
+              </div>
+            </li>
+          ))}
+      </ol>
+      {adding
+        ? <FieldEdit initial={emptyField} onCancel={() => setAdding(false)}
+            onSave={async (d) => { if (await run(() => api<CampaignAdmin>(`/api/admin/campaigns/${campaign.id}/fields`, { json: { kind: d.kind, ...payload(d) } }))) setAdding(false) }} />
+        : <button className="btn btn-primary" onClick={() => setAdding(true)}>Adicionar campo</button>}
+    </section>
+  )
+}
+
+function FieldEdit({ initial, kindLocked, onSave, onCancel }: { initial: FieldDraft; kindLocked?: boolean; onSave: (d: FieldDraft) => void; onCancel: () => void }) {
+  const [d, setD] = useState(initial)
+  const set = (k: keyof FieldDraft) => (e: { target: { value: string } }) => setD({ ...d, [k]: e.target.value })
+  const Wrapper = kindLocked ? 'li' : 'div'
+  return (
+    <Wrapper className={kindLocked ? '' : 'field-new'}>
+      <form className="form form-grid line-edit" onSubmit={(e: FormEvent) => { e.preventDefault(); onSave(d) }}>
+        <label>Tipo
+          <select value={d.kind} disabled={kindLocked} onChange={set('kind')}>
+            {KINDS.map((k) => <option key={k} value={k}>{FIELD_KIND_LABELS[k]}</option>)}
+          </select>
+        </label>
+        <label>Pergunta (rótulo)<input required minLength={2} maxLength={200} placeholder="Ex.: Qual problema a ideia resolve?" value={d.label} onChange={set('label')} /></label>
+        <label>Texto de ajuda (opcional)<input maxLength={500} value={d.help_text} onChange={set('help_text')} /></label>
+        <label className="check"><input type="checkbox" checked={d.required} onChange={(e) => setD({ ...d, required: e.target.checked })} /> Obrigatório</label>
+        {d.kind === 'lista' && (
+          <label className="span-all">Opções (uma por linha, ao menos duas)<textarea rows={4} value={d.options} onChange={set('options')} /></label>
+        )}
+        <div className="actions span-all">
+          <button className="btn btn-primary btn-sm">Salvar campo</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Cancelar</button>
+        </div>
+      </form>
+    </Wrapper>
   )
 }
