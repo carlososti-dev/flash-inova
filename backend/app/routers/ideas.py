@@ -127,7 +127,7 @@ def _idea_out(db, idea: Idea, c: Campaign, role: str) -> IdeaOut:
                  for a, f in db.execute(select(IdeaAnswer, CampaignField)
                                         .join(CampaignField, CampaignField.id == IdeaAnswer.field_id)
                                         .where(IdeaAnswer.idea_id == idea.id)
-                                        .order_by(CampaignField.position, CampaignField.label)).tuples()],
+                                        .order_by(CampaignField.position, CampaignField.label))],
         coauthors=[_person(p) for p in _coauthors(db, idea.id)],
         regulation_version=regulation.version if regulation else None,
         regulation_accepted_at=idea.regulation_accepted_at,
