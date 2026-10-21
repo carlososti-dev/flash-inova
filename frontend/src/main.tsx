@@ -1,0 +1,65 @@
+import { StrictMode, type ReactNode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import type { Role } from './api'
+import { AuthCard, Notice } from './components'
+import Admin from './pages/Admin'
+import ForgotPassword from './pages/ForgotPassword'
+import Home, { Soon } from './pages/Home'
+import Login from './pages/Login'
+import Platform from './pages/Platform'
+import Register from './pages/Register'
+import SetPassword from './pages/SetPassword'
+import { SiteProvider, useSite } from './site'
+import './index.css'
+
+function Guard({ roles, children }: { roles?: Role[]; children: ReactNode }) {
+  const { me } = useSite()
+  if (!me) return <Navigate to="/login" replace />
+  if (roles && !roles.includes(me.role)) return <Navigate to="/" replace />
+  return <>{children}</>
+}
+
+function App() {
+  const { loading, error, site } = useSite()
+  if (loading) return <main className="auth"><p className="muted">Carregando…</p></main>
+  if (error) {
+    return (
+      <AuthCard title="Ops">
+        <Notice kind="error">{error}</Notice>
+        {/* ?tenant= vazio limpa o hospital lembrado pela aba e volta para a plataforma */}
+        <p className="auth-links"><a className="link" href="/login?tenant=">Ir para o login da plataforma</a></p>
+      </AuthCard>
+    )
+  }
+  const inTenant = Boolean(site?.tenant)
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/esqueci-senha" element={<ForgotPassword />} />
+      <Route path="/cadastro" element={<Register />} />
+      <Route path="/redefinir-senha" element={<SetPassword mode="reset" />} />
+      <Route path="/ativar-conta" element={<SetPassword mode="activate" />} />
+      <Route path="/plataforma" element={<Guard roles={['consultor']}><Platform /></Guard>} />
+      {inTenant ? (
+        <>
+          <Route path="/" element={<Guard><Home /></Guard>} />
+          <Route path="/analise" element={<Guard roles={['administrador', 'consultor', 'membro_comite']}><Soon title="Análise" slice="fatia de avaliação" /></Guard>} />
+          <Route path="/classificacao" element={<Guard roles={['administrador', 'consultor']}><Soon title="Classificação" slice="fatia de avaliação" /></Guard>} />
+          <Route path="/administracao" element={<Guard roles={['administrador', 'consultor']}><Admin /></Guard>} />
+        </>
+      ) : (
+        <Route path="/" element={<Guard roles={['consultor']}><Navigate to="/plataforma" replace /></Guard>} />
+      )}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <SiteProvider><App /></SiteProvider>
+    </BrowserRouter>
+  </StrictMode>,
+)

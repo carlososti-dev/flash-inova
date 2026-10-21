@@ -1,0 +1,30 @@
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+
+from .config import get_settings
+from .routers import admin, auth, platform
+
+
+def create_app() -> FastAPI:
+    settings = get_settings()
+    if not settings.allow_tenant_override and (settings.secret_key.startswith("troque") or len(settings.secret_key) < 32):
+        raise RuntimeError("Em produção, defina SECRET_KEY com pelo menos 32 caracteres aleatórios.")
+    app = FastAPI(title="Flash Inova", version="0.1.0")
+    app.include_router(auth.router)
+    app.include_router(platform.router)
+    app.include_router(admin.router)
+
+    storage = Path(settings.storage_dir)
+    storage.mkdir(parents=True, exist_ok=True)
+    app.mount("/files", StaticFiles(directory=storage), name="files")
+
+    @app.get("/api/health")
+    def health() -> dict:
+        return {"status": "ok"}
+
+    return app
+
+
+app = create_app()

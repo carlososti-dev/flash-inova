@@ -1,0 +1,13 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// Em desenvolvimento, o backend roda em :8000 e o hospital vai no parâmetro ?tenant=hnsg.
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      '/api': 'http://127.0.0.1:8000',
+      '/files': 'http://127.0.0.1:8000',
+    },
+  },
+})
