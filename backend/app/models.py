@@ -122,6 +122,62 @@ class AuthorizedMember(Timestamps, Base):
     )
 
 
+class CampaignPhase(str, enum.Enum):
+    recepcao = "recepcao"
+    analise = "analise"
+    classificacao = "classificacao"
+    defesa = "defesa"
+    votacao = "votacao"
+    encerrada = "encerrada"
+
+
+class Campaign(Timestamps, Base):
+    """Uma edição do programa de ideias. O período de inscrição é calculado pelas datas; a fase atual é gravada,
+    porque avança por ação do administrador ("Fechar fase")."""
+    __tablename__ = "campaigns"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    title: Mapped[str] = mapped_column(String(200))
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False)
+    submission_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    submission_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    analysis_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    analysis_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    classification_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    defense_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    voting_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    voting_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    home_headline: Mapped[str | None] = mapped_column(String(300))
+    home_text: Mapped[str | None] = mapped_column(Text)
+    tips_text: Mapped[str | None] = mapped_column(Text)
+    regulation_text: Mapped[str | None] = mapped_column(Text)
+    banner_path: Mapped[str | None] = mapped_column(String(500))
+    video_url: Mapped[str | None] = mapped_column(String(500))
+    num_evaluators: Mapped[int] = mapped_column(Integer)
+    weight_classify: Mapped[int] = mapped_column(Integer)
+    weight_maybe: Mapped[int] = mapped_column(Integer)
+    cutoff_score: Mapped[int] = mapped_column(Integer)
+    blind_review: Mapped[bool] = mapped_column(Boolean, default=True)
+    num_defense_finalists: Mapped[int | None] = mapped_column(Integer)
+    num_voting_finalists: Mapped[int | None] = mapped_column(Integer)
+    num_winners: Mapped[int] = mapped_column(Integer, default=3)
+    current_phase: Mapped[CampaignPhase] = mapped_column(_enum(CampaignPhase, "campaign_phase"),
+                                                         default=CampaignPhase.recepcao)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+
+
+class CampaignLine(Timestamps, Base):
+    """Linha de ideias (temática): toda ideia pertence a uma."""
+    __tablename__ = "campaign_lines"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("campaigns.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(String(500))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 class AuditLog(Base):
     __tablename__ = "audit_log"
 

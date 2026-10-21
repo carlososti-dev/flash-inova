@@ -3,24 +3,30 @@ import {
   api, download, ROLE_LABELS, type Authorized, type AuthorizedPage, type ImportReport, type MemberRole, type Role,
   type UserAdmin, type UserStatus,
 } from '../api'
+import { useSearchParams } from 'react-router-dom'
 import { Layout, Notice, useSubmit } from '../components'
 import { useSite } from '../site'
+import CampaignsTab from './AdminCampaigns'
 
-type Tab = 'autorizados' | 'usuarios'
+const TABS = { campanhas: 'Campanhas', autorizados: 'Lista de autorizados', usuarios: 'Usuários' } as const
+type Tab = keyof typeof TABS
 
 export default function Admin() {
-  const [tab, setTab] = useState<Tab>('autorizados')
+  const [params, setParams] = useSearchParams()
+  const requested = params.get('aba')
+  const tab: Tab = requested && requested in TABS ? (requested as Tab) : 'campanhas'
   return (
     <Layout>
       <div className="page-head">
         <h1>Administração</h1>
-        <p className="muted">Quem pode se cadastrar no hospital e o que cada usuário pode fazer. Campanhas chegam na Fatia 3.</p>
+        <p className="muted">Campanhas do hospital, quem pode se cadastrar e o que cada usuário pode fazer.</p>
       </div>
       <div className="tabs" role="tablist">
-        <button role="tab" aria-selected={tab === 'autorizados'} onClick={() => setTab('autorizados')}>Lista de autorizados</button>
-        <button role="tab" aria-selected={tab === 'usuarios'} onClick={() => setTab('usuarios')}>Usuários</button>
+        {(Object.keys(TABS) as Tab[]).map((t) => (
+          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setParams({ aba: t }, { replace: true })}>{TABS[t]}</button>
+        ))}
       </div>
-      {tab === 'autorizados' ? <AuthorizedTab /> : <UsersTab />}
+      {tab === 'campanhas' ? <CampaignsTab /> : tab === 'autorizados' ? <AuthorizedTab /> : <UsersTab />}
     </Layout>
   )
 }

@@ -2,6 +2,7 @@
 
 Fatia 1: base para vários hospitais, login por e-mail e identidade de cada hospital.
 Fatia 2: lista de autorizados, primeiro acesso por matrícula e e-mail, gestão de usuários.
+Fatia 3: campanhas (datas das fases, linhas de ideias, textos, banner, vídeo, regulamento e regras) e a página inicial da campanha.
 
 - **Backend**: Python, FastAPI, SQLAlchemy, PostgreSQL (`backend/`)
 - **Frontend**: React + Vite + TypeScript (`frontend/`)
@@ -20,6 +21,10 @@ Fatia 2: lista de autorizados, primeiro acesso por matrícula e e-mail, gestão 
 - **Primeiro acesso** (`/cadastro`): a pessoa informa matrícula e e-mail; se conferirem com a lista, recebe o link para criar a senha e nasce com o perfil inicial da lista (colaborador, se vazio). A resposta é sempre a mesma, para não revelar quem está na lista. Quem já tem conta recebe o link de redefinição.
 - **Usuários** (Administração): busca e filtros, troca de perfil, desativar (derruba as sessões abertas) e reativar, reenviar convite. O administrador não altera a si mesmo, e o perfil Consultor não pode ser dado.
 - Menu da página inicial conforme a especificação: Análise para administrador, consultor e comitê; Classificação e Administração para administrador e consultor.
+- **Campanhas** (Administração > Campanhas): várias por hospital, cada uma com título, datas de todas as fases (inscrição, análise, classificação, defesa e votação), chamada, apresentação, dicas, vídeo do YouTube, banner, regulamento e regras (avaliadores por ideia, pesos, linha de corte, duplo-cego, N finalistas da defesa, X da votação e número de premiadas). As regras de avaliação nascem com os padrões do hospital. Datas fora de ordem são recusadas com mensagem clara.
+- **Linhas de ideias (temáticas)**: até 5 ativas por campanha, com descrição opcional, ordem ajustável, desativar e reativar. A campanha só é publicada com pelo menos uma linha ativa.
+- **Rascunho e publicação**: só campanhas publicadas aparecem para os colaboradores; o administrador pré-visualiza o rascunho em "Ver página". Rascunho pode ser excluído; campanha publicada, não.
+- **Página inicial da campanha**: banner (ou o título sobre a cor do hospital), período de inscrição ou "Inscrições de projetos encerradas", vídeo, dicas, temáticas, calendário das fases, link para o regulamento e botão "Enviar projeto", liberado só durante as inscrições. Mostra a campanha publicada mais recente que ainda não foi encerrada.
 
 ## Rodar localmente
 
@@ -69,5 +74,5 @@ Cobrem: importação da lista (conferência, erros por linha, XLSX, reimportaç�
 
 ## Próximas fatias
 
-3. Campanhas: datas das fases, linhas de ideias, textos, banner, vídeo e regras.
-Depois: envio de ideias, distribuição duplo-cego, análise, classificação, defesa, votação e resultados.
+4. Envio de ideias (formulário do projeto).
+Depois: distribuição duplo-cego, análise, classificação, defesa, votação e resultados.

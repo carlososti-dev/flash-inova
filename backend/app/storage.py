@@ -6,6 +6,18 @@ from typing import Protocol
 from .config import get_settings
 
 
+# Assinaturas dos formatos de imagem aceitos (SVG fica de fora: pode carregar script).
+IMAGE_FORMATS = {b"\x89PNG\r\n\x1a\n": "png", b"\xff\xd8\xff": "jpg", b"RIFF": "webp"}
+
+
+def image_extension(data: bytes) -> str | None:
+    """Extensão pelo conteúdo do arquivo (não pelo nome): png, jpg, webp ou None."""
+    extension = next((ext for magic, ext in IMAGE_FORMATS.items() if data.startswith(magic)), None)
+    if extension == "webp" and data[8:12] != b"WEBP":
+        return None
+    return extension
+
+
 class Storage(Protocol):
     def save(self, folder: str, data: bytes, extension: str) -> str: ...
     def url(self, path: str | None) -> str | None: ...

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from .config import get_settings
-from .routers import admin, auth, platform
+from .routers import admin, auth, campaigns, platform
 
 
 def create_app() -> FastAPI:
@@ -15,6 +15,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(platform.router)
     app.include_router(admin.router)
+    app.include_router(campaigns.router)
 
     storage = Path(settings.storage_dir)
     storage.mkdir(parents=True, exist_ok=True)
