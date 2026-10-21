@@ -19,6 +19,7 @@ os.environ.update({
     "DATABASE_URL": f"postgresql+psycopg://{APP_ROLE}:{APP_PASSWORD}@{_user_host}/{TEST_DB}",
     "EMAIL_BACKEND": "memory",
     "STORAGE_DIR": tempfile.mkdtemp(prefix="flash-storage-"),
+    "PRIVATE_STORAGE_DIR": tempfile.mkdtemp(prefix="flash-private-"),
     "SECRET_KEY": "chave-de-teste-com-pelo-menos-32-caracteres",
     "ALLOW_TENANT_OVERRIDE": "true",
     "APP_DB_ROLE": APP_ROLE,
@@ -60,7 +61,7 @@ def owner_engine():
 @pytest.fixture(autouse=True)
 def clean(owner_engine):
     with owner_engine.begin() as c:
-        c.execute(text("TRUNCATE campaign_lines, campaigns, audit_log, auth_tokens, authorized_members, users, tenants CASCADE"))
+        c.execute(text("TRUNCATE idea_coauthors, idea_answers, ideas, campaign_fields, regulation_versions, campaign_lines, campaigns, audit_log, auth_tokens, authorized_members, users, tenants CASCADE"))
     get_email_sender().outbox.clear()
     yield
 

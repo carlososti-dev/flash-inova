@@ -11,10 +11,14 @@ from ..campaigns import (
 )
 from ..config import get_settings
 from ..deps import RequestContext, get_context, get_current_user, require_active_tenant
-from ..models import Campaign, CampaignLine, Role, User
+from ..ideas import clean_options, current_regulation
+from ..models import (
+    Campaign, CampaignField, CampaignLine, FieldKind, Idea, IdeaAnswer, IdeaStage, RegulationVersion, Role, User,
+)
 from ..schemas import (
-    CampaignAdminOut, CampaignCreate, CampaignLineIn, CampaignLineOrder, CampaignLineOut, CampaignLineUpdate,
-    CampaignPublic, CampaignSummary, CampaignUpdate,
+    CampaignAdminOut, CampaignCreate, CampaignFieldIn, CampaignFieldOrder, CampaignFieldOut, CampaignFieldUpdate,
+    CampaignLineIn, CampaignLineOrder, CampaignLineOut, CampaignLineUpdate, CampaignPublic, CampaignSummary,
+    CampaignUpdate,
 )
 from ..storage import get_storage, image_extension
 from .admin import AdminCtx, admin_ctx
@@ -29,6 +33,18 @@ def _line_out(line: CampaignLine) -> CampaignLineOut:
                            is_active=line.is_active)
 
 
+def fields_of(db, campaign_id: uuid.UUID, only_active: bool = False) -> list[CampaignField]:
+    query = select(CampaignField).where(CampaignField.campaign_id == campaign_id)
+    if only_active:
+        query = query.where(CampaignField.is_active.is_(True))
+    return list(db.scalars(query.order_by(CampaignField.position, CampaignField.label)))
+
+
+def field_out(f: CampaignField, answers: int = 0) -> CampaignFieldOut:
+    return CampaignFieldOut(id=f.id, kind=f.kind, label=f.label, help_text=f.help_text, required=f.required,
+                            options=f.options, position=f.position, is_active=f.is_active, answers=answers)
+
+
 def _summary_fields(db, c: Campaign) -> dict:
     active = db.scalar(select(func.count()).select_from(CampaignLine).where(
         CampaignLine.campaign_id == c.id, CampaignLine.is_active.is_(True))) or 0
@@ -41,8 +57,17 @@ def _admin_out(db, c: Campaign) -> CampaignAdminOut:
     fields = {k: getattr(c, k) for k in CampaignAdminOut.model_fields
               if hasattr(Campaign, k) and k not in {"id", "title", "is_published", "submission_start",
                                                     "submission_end", "current_phase"}}
+    answers = dict(db.execute(
+        select(IdeaAnswer.field_id, func.count()).join(CampaignField, CampaignField.id == IdeaAnswer.field_id)
+        .where(CampaignField.campaign_id == c.id).group_by(IdeaAnswer.field_id)).all())
+    regulation = current_regulation(db, c.id)
+    submitted = db.scalar(select(func.count()).select_from(Idea).where(
+        Idea.campaign_id == c.id, Idea.stage != IdeaStage.rascunho)) or 0
     return CampaignAdminOut(**_summary_fields(db, c), **fields, banner_url=get_storage().url(c.banner_path),
-                            lines=[_line_out(x) for x in lines_of(db, c.id)])
+                            lines=[_line_out(x) for x in lines_of(db, c.id)],
+                            fields=[field_out(f, answers.get(f.id, 0)) for f in fields_of(db, c.id)],
+                            regulation_version=regulation.version if regulation else None,
+                            ideas_submitted=submitted)
 
 
 def _get_campaign(a: AdminCtx, campaign_id: uuid.UUID) -> Campaign:
@@ -119,11 +144,20 @@ def update_campaign(campaign_id: uuid.UUID, body: CampaignUpdate, a: AdminCtx = 
         raise _unprocessable("As finalistas da votação não podem ser mais que as finalistas da defesa.")
     if x is not None and winners > x:
         raise _unprocessable("O número de premiadas não pode ser maior que o de finalistas da votação.")
+    if changes.get("is_published") is False and c.is_published and a.db.scalar(
+            select(func.count()).select_from(Idea).where(Idea.campaign_id == c.id)):
+        raise _unprocessable("A campanha já tem ideias e não pode voltar a ser rascunho.")
     if changes.get("is_published") and _active_lines(a, c.id) == 0:
         raise _unprocessable("Cadastre ao menos uma linha de ideias antes de publicar a campanha.")
 
     for field, value in changes.items():
         setattr(c, field, value.strip() if isinstance(value, str) and field != "regulation_text" else value)
+    # Cada texto novo do regulamento vira uma versão: o aceite de quem envia aponta para a versão que leu.
+    if changes.get("regulation_text"):
+        latest = current_regulation(a.db, c.id)
+        if latest is None or latest.text != c.regulation_text:
+            a.db.add(RegulationVersion(tenant_id=a.tenant.id, campaign_id=c.id, text=c.regulation_text,
+                                       version=(latest.version if latest else 0) + 1, created_by=a.actor.id))
     if changes:
         a.record("campanha_alterada", entity="campaign", entity_id=c.id,
                  details={k: v for k, v in body.model_dump(exclude_unset=True, mode="json").items()
@@ -257,13 +291,98 @@ def reorder_lines(campaign_id: uuid.UUID, body: CampaignLineOrder, a: AdminCtx =
     return _admin_out(a.db, c)
 
 
+# ---------- Campos do formulário de envio ----------
+
+def _get_field(a: AdminCtx, field_id: uuid.UUID) -> CampaignField:
+    f = a.db.get(CampaignField, field_id)
+    if f is None or f.tenant_id != a.tenant.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Campo não encontrado.")
+    return f
+
+
+def _options_for(kind: FieldKind, options: list[str] | None) -> list[str] | None:
+    if kind != FieldKind.lista:
+        return None
+    try:
+        return clean_options(options)
+    except ValueError as e:
+        raise _unprocessable(str(e))
+
+
+@router.post("/admin/campaigns/{campaign_id}/fields", response_model=CampaignAdminOut,
+             status_code=status.HTTP_201_CREATED)
+def add_field(campaign_id: uuid.UUID, body: CampaignFieldIn, a: AdminCtx = Depends(admin_ctx)) -> CampaignAdminOut:
+    c = _get_campaign(a, campaign_id)
+    last = a.db.scalar(select(func.max(CampaignField.position)).where(CampaignField.campaign_id == c.id))
+    f = CampaignField(tenant_id=a.tenant.id, campaign_id=c.id, kind=body.kind, label=body.label.strip(),
+                      help_text=(body.help_text or "").strip() or None, required=body.required,
+                      options=_options_for(body.kind, body.options), position=(last or 0) + 1)
+    a.db.add(f)
+    a.db.flush()
+    a.record("campo_criado", entity="campaign_field", entity_id=f.id,
+             details={"rotulo": f.label, "tipo": f.kind.value, "obrigatorio": f.required})
+    a.db.commit()
+    return _admin_out(a.db, c)
+
+
+@router.patch("/admin/campaign-fields/{field_id}", response_model=CampaignAdminOut)
+def update_field(field_id: uuid.UUID, body: CampaignFieldUpdate, a: AdminCtx = Depends(admin_ctx)) -> CampaignAdminOut:
+    f = _get_field(a, field_id)
+    c = _get_campaign(a, f.campaign_id)
+    changes = {k: v for k, v in body.model_dump(exclude_unset=True).items()
+               if v is not None or k == "help_text"}
+    if "options" in changes:
+        changes["options"] = _options_for(f.kind, changes["options"])
+    if "label" in changes:
+        changes["label"] = changes["label"].strip()
+    if "help_text" in changes:
+        changes["help_text"] = (changes["help_text"] or "").strip() or None
+    for field, value in changes.items():
+        setattr(f, field, value)
+    a.record("campo_alterado", entity="campaign_field", entity_id=f.id, details=body.model_dump(exclude_unset=True))
+    a.db.commit()
+    return _admin_out(a.db, c)
+
+
+@router.delete("/admin/campaign-fields/{field_id}", response_model=CampaignAdminOut)
+def delete_field(field_id: uuid.UUID, a: AdminCtx = Depends(admin_ctx)) -> CampaignAdminOut:
+    """Campo com respostas não é apagado, só desativado (o banco garante)."""
+    f = _get_field(a, field_id)
+    c = _get_campaign(a, f.campaign_id)
+    a.db.delete(f)
+    try:
+        a.db.flush()
+    except IntegrityError:
+        a.db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Este campo já tem respostas: desative-o em vez de excluir.")
+    a.record("campo_excluido", entity="campaign_field", entity_id=field_id, details={"rotulo": f.label})
+    a.db.commit()
+    return _admin_out(a.db, c)
+
+
+@router.put("/admin/campaigns/{campaign_id}/fields/order", response_model=CampaignAdminOut)
+def reorder_fields(campaign_id: uuid.UUID, body: CampaignFieldOrder, a: AdminCtx = Depends(admin_ctx)) -> CampaignAdminOut:
+    c = _get_campaign(a, campaign_id)
+    fields = {f.id: f for f in fields_of(a.db, c.id)}
+    if set(body.ids) != set(fields) or len(body.ids) != len(fields):
+        raise _unprocessable("Envie a ordem com todos os campos do formulário.")
+    for position, field_id in enumerate(body.ids, start=1):
+        fields[field_id].position = position
+    a.record("campos_reordenados", entity="campaign", entity_id=c.id)
+    a.db.commit()
+    return _admin_out(a.db, c)
+
+
 # ---------- Página inicial ----------
 
 def _public_out(db, c: Campaign, tenant) -> CampaignPublic:
     storage = get_storage()
+    regulation = current_regulation(db, c.id)
     return CampaignPublic(
         id=c.id, title=c.title, is_published=c.is_published, home_headline=c.home_headline, home_text=c.home_text,
         tips_text=c.tips_text, regulation_text=c.regulation_text,
+        regulation_version=regulation.version if regulation else None,
+        regulation_updated_at=regulation.created_at if regulation else None,
         banner_url=storage.url(c.banner_path or tenant.default_banner_path),
         video_embed_url=youtube_embed(c.video_url or tenant.default_video_url),
         submission_start=c.submission_start, submission_end=c.submission_end, submission_state=submission_state(c),
