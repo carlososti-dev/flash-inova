@@ -1,9 +1,9 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, EmailStr, Field, field_validator
 
-from .models import Role, Theme, UserStatus
+from .models import CampaignPhase, Role, Theme, UserStatus
 
 
 class TenantPublic(BaseModel):
@@ -163,3 +163,128 @@ class UserAdminOut(BaseModel):
 class UserAdminUpdate(BaseModel):
     role: Role | None = None
     status: UserStatus | None = None
+
+
+# ---------- Campanhas ----------
+
+class CampaignLineIn(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class CampaignLineUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    description: str | None = Field(default=None, max_length=500)
+    is_active: bool | None = None
+
+
+class CampaignLineOrder(BaseModel):
+    ids: list[uuid.UUID]
+
+
+class CampaignLineOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str | None
+    position: int
+    is_active: bool
+
+
+class CampaignCreate(BaseModel):
+    title: str = Field(min_length=3, max_length=200)
+    submission_start: AwareDatetime
+    submission_end: AwareDatetime
+
+
+def _blank_to_none(value: str | None) -> str | None:
+    return value if value is None or value.strip() else None
+
+
+class CampaignUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=3, max_length=200)
+    is_published: bool | None = None
+    submission_start: AwareDatetime | None = None
+    submission_end: AwareDatetime | None = None
+    analysis_start: AwareDatetime | None = None
+    analysis_end: AwareDatetime | None = None
+    classification_end: AwareDatetime | None = None
+    defense_date: AwareDatetime | None = None
+    voting_start: AwareDatetime | None = None
+    voting_end: AwareDatetime | None = None
+    home_headline: str | None = Field(default=None, max_length=300)
+    home_text: str | None = Field(default=None, max_length=5000)
+    tips_text: str | None = Field(default=None, max_length=5000)
+    regulation_text: str | None = Field(default=None, max_length=100_000)
+    video_url: str | None = Field(default=None, max_length=500)
+    num_evaluators: int | None = Field(default=None, ge=1, le=20)
+    weight_classify: int | None = Field(default=None, ge=0, le=100)
+    weight_maybe: int | None = Field(default=None, ge=0, le=100)
+    cutoff_score: int | None = Field(default=None, ge=0, le=100)
+    blind_review: bool | None = None
+    num_defense_finalists: int | None = Field(default=None, ge=1, le=500)
+    num_voting_finalists: int | None = Field(default=None, ge=1, le=500)
+    num_winners: int | None = Field(default=None, ge=1, le=20)
+
+    _blank = field_validator("home_headline", "home_text", "tips_text", "regulation_text", "video_url")(_blank_to_none)
+
+
+class PhaseOut(BaseModel):
+    key: str
+    label: str
+    start: datetime | None
+    end: datetime | None
+
+
+class CampaignSummary(BaseModel):
+    id: uuid.UUID
+    title: str
+    is_published: bool
+    submission_start: datetime
+    submission_end: datetime
+    submission_state: str
+    current_phase: CampaignPhase
+    active_lines: int
+
+
+class CampaignAdminOut(CampaignSummary):
+    analysis_start: datetime | None
+    analysis_end: datetime | None
+    classification_end: datetime | None
+    defense_date: datetime | None
+    voting_start: datetime | None
+    voting_end: datetime | None
+    home_headline: str | None
+    home_text: str | None
+    tips_text: str | None
+    regulation_text: str | None
+    banner_url: str | None
+    video_url: str | None
+    num_evaluators: int
+    weight_classify: int
+    weight_maybe: int
+    cutoff_score: int
+    blind_review: bool
+    num_defense_finalists: int | None
+    num_voting_finalists: int | None
+    num_winners: int
+    lines: list[CampaignLineOut]
+
+
+class CampaignPublic(BaseModel):
+    """O que a página inicial mostra a quem entra no hospital."""
+    id: uuid.UUID
+    title: str
+    is_published: bool
+    home_headline: str | None
+    home_text: str | None
+    tips_text: str | None
+    regulation_text: str | None
+    banner_url: str | None
+    video_embed_url: str | None
+    submission_start: datetime
+    submission_end: datetime
+    submission_state: str
+    current_phase: CampaignPhase
+    phases: list[PhaseOut]
+    num_winners: int
+    lines: list[CampaignLineOut]

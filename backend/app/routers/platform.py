@@ -11,12 +11,9 @@ from ..config import get_settings
 from ..deps import RequestContext, enter_platform_mode, get_context, require_roles
 from ..models import Role, Tenant, User
 from ..schemas import AdminCreate, AdminOut, TenantAdmin, TenantCreate, TenantUpdate
-from ..storage import get_storage
+from ..storage import get_storage, image_extension
 
 router = APIRouter(prefix="/api/platform", tags=["plataforma"])
-
-# Assinaturas dos formatos aceitos para logotipo (SVG fica de fora: pode carregar script).
-LOGO_FORMATS = {b"\x89PNG\r\n\x1a\n": "png", b"\xff\xd8\xff": "jpg", b"RIFF": "webp"}
 
 
 def platform_ctx(
@@ -88,9 +85,7 @@ async def upload_logo(tenant_id: uuid.UUID, file: UploadFile = File(...), p=Depe
     data = await file.read(limit + 1)
     if len(data) > limit:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "O logotipo deve ter no máximo 2 MB.")
-    extension = next((ext for magic, ext in LOGO_FORMATS.items() if data.startswith(magic)), None)
-    if extension == "webp" and data[8:12] != b"WEBP":
-        extension = None
+    extension = image_extension(data)
     if extension is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Envie o logotipo em PNG, JPG ou WEBP.")
     tenant.logo_path = get_storage().save(f"tenants/{tenant.slug}", data, extension)

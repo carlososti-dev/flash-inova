@@ -31,6 +31,8 @@ function errorMessage(body: unknown): string {
     if (field === 'email') return 'Informe um e-mail válido.'
     if (field === 'slug') return 'Endereço inválido: use letras minúsculas, números e hífen.'
     if (field === 'default_role') return 'Perfil inicial deve ser colaborador, membro de comitê ou gestor.'
+    if (field === 'name') return 'O nome deve ter pelo menos 2 caracteres.'
+    if (field === 'title') return 'O título deve ter pelo menos 3 caracteres.'
     return 'Confira os campos preenchidos.'
   }
   return 'Não foi possível concluir. Tente novamente.'
@@ -94,3 +96,37 @@ export async function download(path: string, filename: string): Promise<void> {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+export type CampaignPhase = 'recepcao' | 'analise' | 'classificacao' | 'defesa' | 'votacao' | 'encerrada'
+export type SubmissionState = 'antes' | 'aberta' | 'encerrada'
+export interface CampaignLine { id: string; name: string; description: string | null; position: number; is_active: boolean }
+export interface CampaignSummary {
+  id: string; title: string; is_published: boolean; submission_start: string; submission_end: string
+  submission_state: SubmissionState; current_phase: CampaignPhase; active_lines: number
+}
+export interface CampaignAdmin extends CampaignSummary {
+  analysis_start: string | null; analysis_end: string | null; classification_end: string | null
+  defense_date: string | null; voting_start: string | null; voting_end: string | null
+  home_headline: string | null; home_text: string | null; tips_text: string | null; regulation_text: string | null
+  banner_url: string | null; video_url: string | null
+  num_evaluators: number; weight_classify: number; weight_maybe: number; cutoff_score: number; blind_review: boolean
+  num_defense_finalists: number | null; num_voting_finalists: number | null; num_winners: number
+  lines: CampaignLine[]
+}
+export interface PhaseInfo { key: string; label: string; start: string | null; end: string | null }
+export interface CampaignPublic {
+  id: string; title: string; is_published: boolean; home_headline: string | null; home_text: string | null
+  tips_text: string | null; regulation_text: string | null; banner_url: string | null; video_embed_url: string | null
+  submission_start: string; submission_end: string; submission_state: SubmissionState; current_phase: CampaignPhase
+  phases: PhaseInfo[]; num_winners: number; lines: CampaignLine[]
+}
+
+export const PHASE_LABELS: Record<CampaignPhase, string> = {
+  recepcao: 'Recepção de ideias', analise: 'Análise', classificacao: 'Classificação', defesa: 'Defesa',
+  votacao: 'Votação', encerrada: 'Encerrada',
+}
+
+const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+const dateTimeFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+export const fmtDate = (iso: string | null) => (iso ? dateFmt.format(new Date(iso)) : '—')
+export const fmtDateTime = (iso: string | null) => (iso ? dateTimeFmt.format(new Date(iso)) : '—')

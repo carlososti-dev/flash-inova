@@ -1,12 +1,13 @@
 """O banco recusa dados de outro hospital mesmo se a aplicação esquecer um filtro."""
 import uuid
+from datetime import timedelta
 
 import pytest
 from sqlalchemy import select, text
 from sqlalchemy.exc import ProgrammingError
 
 from app.db import get_sessionmaker
-from app.models import AuditLog, Role, User, utcnow
+from app.models import AuditLog, Campaign, Role, User, utcnow
 
 
 def app_session(tenant_id=None, all_tenants=False):
@@ -59,3 +60,18 @@ def test_auditoria_isolada(make_tenant, owner):
     owner.commit()
     with app_session(hnsg.id) as s:
         assert {a.tenant_id for a in s.scalars(select(AuditLog))} == {hnsg.id}
+
+
+def test_campanhas_isoladas(make_tenant, owner):
+    hnsg, hsc = make_tenant("hnsg"), make_tenant("hsc")
+    now = utcnow()
+    owner.add_all([Campaign(tenant_id=t.id, title=f"Campanha {t.slug}", submission_start=now,
+                            submission_end=now + timedelta(days=1), num_evaluators=3, weight_classify=5,
+                            weight_maybe=1, cutoff_score=70) for t in (hnsg, hsc)])
+    owner.commit()
+    with app_session(hnsg.id) as s:
+        assert set(s.scalars(select(Campaign.title))) == {"Campanha hnsg"}
+        s.add(Campaign(tenant_id=hsc.id, title="Intrusa", submission_start=now, submission_end=now + timedelta(days=1),
+                       num_evaluators=3, weight_classify=5, weight_maybe=1, cutoff_score=70))
+        with pytest.raises(ProgrammingError, match="row-level security"):
+            s.commit()

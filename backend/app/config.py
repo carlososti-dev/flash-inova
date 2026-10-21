@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     storage_dir: str = "storage"
     max_logo_bytes: int = 2 * 1024 * 1024
+    max_banner_bytes: int = 5 * 1024 * 1024
 
     reset_token_hours: int = 1
     activation_token_hours: int = 72
