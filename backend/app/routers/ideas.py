@@ -18,8 +18,8 @@ from ..ideas import (
     current_regulation, next_number,
 )
 from ..models import (
-    AuthorizedMember, Campaign, CampaignField, CampaignLine, FieldKind, Idea, IdeaAnswer, IdeaCoauthor, IdeaStage,
-    RegulationVersion, Role, Tenant, User, utcnow,
+    Assignment, AuthorizedMember, Campaign, CampaignField, CampaignLine, FieldKind, Idea, IdeaAnswer, IdeaCoauthor,
+    IdeaStage, RegulationVersion, Role, Tenant, User, utcnow,
 )
 from ..schemas import (
     AnswerOut, BoardCampaign, BoardCard, BoardColumn, BoardOut, IdeaCreate, IdeaFormOut, IdeaIn, IdeaOut,
@@ -117,17 +117,27 @@ def _summary_fields(db, idea: Idea, c: Campaign, role: str) -> dict:
                 can_edit=role == "autor" and can_edit(idea, c))
 
 
+def answers_out(db, idea_id: uuid.UUID) -> list[AnswerOut]:
+    rows = db.execute(select(IdeaAnswer, CampaignField).join(CampaignField, CampaignField.id == IdeaAnswer.field_id)
+                      .where(IdeaAnswer.idea_id == idea_id).order_by(CampaignField.position, CampaignField.label))
+    return [AnswerOut(field_id=a.field_id, label=f.label, kind=f.kind, value=a.value, file_name=a.file_name,
+                      file_size=a.file_size) for a, f in rows]
+
+
+def attachment_response(path: str, filename: str | None) -> FileResponse:
+    extension = path.rsplit(".", 1)[-1]
+    return FileResponse(get_private_storage().local_path(path),
+                        media_type=ATTACHMENT_TYPES.get(extension, "application/octet-stream"),
+                        filename=filename, content_disposition_type="attachment",
+                        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"})
+
+
 def _idea_out(db, idea: Idea, c: Campaign, role: str) -> IdeaOut:
     regulation = db.get(RegulationVersion, idea.regulation_version_id) if idea.regulation_version_id else None
     return IdeaOut(
         **_summary_fields(db, idea, c, role), line_id=idea.line_id, summary=idea.summary,
         author_name=db.get(User, idea.author_id).name,
-        answers=[AnswerOut(field_id=a.field_id, label=f.label, kind=f.kind, value=a.value, file_name=a.file_name,
-                           file_size=a.file_size)
-                 for a, f in db.execute(select(IdeaAnswer, CampaignField)
-                                        .join(CampaignField, CampaignField.id == IdeaAnswer.field_id)
-                                        .where(IdeaAnswer.idea_id == idea.id)
-                                        .order_by(CampaignField.position, CampaignField.label))],
+        answers=answers_out(db, idea.id),
         coauthors=[_person(p) for p in _coauthors(db, idea.id)],
         regulation_version=regulation.version if regulation else None,
         regulation_accepted_at=idea.regulation_accepted_at,
@@ -379,11 +389,7 @@ def download_attachment(idea_id: uuid.UUID, field_id: uuid.UUID, m: MemberCtx = 
     answer = _answers(m.db, idea.id).get(f.id)
     if answer is None or answer.file_path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Arquivo não encontrado.")
-    extension = answer.file_path.rsplit(".", 1)[-1]
-    return FileResponse(get_private_storage().local_path(answer.file_path),
-                        media_type=ATTACHMENT_TYPES.get(extension, "application/octet-stream"),
-                        filename=answer.file_name, content_disposition_type="attachment",
-                        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"})
+    return attachment_response(answer.file_path, answer.file_name)
 
 
 # ---------- Kanban (menu Classificação) ----------
@@ -405,6 +411,12 @@ def board(campaign_id: uuid.UUID | None = None, user: User = Depends(require_rol
     if campaign_id is not None:
         coauthors = select(func.count()).select_from(IdeaCoauthor).where(IdeaCoauthor.idea_id == Idea.id) \
             .correlate(Idea).scalar_subquery()
+        reviews = dict(db.execute(
+            select(Assignment.idea_id, func.count(Assignment.verdict)).where(Assignment.campaign_id == campaign_id)
+            .group_by(Assignment.idea_id)).all())
+        totals = dict(db.execute(
+            select(Assignment.idea_id, func.count()).where(Assignment.campaign_id == campaign_id)
+            .group_by(Assignment.idea_id)).all())
         rows = db.execute(
             select(Idea, User.name, User.sector, CampaignLine.name, coauthors)
             .join(User, User.id == Idea.author_id).outerjoin(CampaignLine, CampaignLine.id == Idea.line_id)
@@ -413,6 +425,7 @@ def board(campaign_id: uuid.UUID | None = None, user: User = Depends(require_rol
         for idea, author, sector, line, n_coauthors in rows:
             cards[idea.stage.value].append(BoardCard(
                 id=idea.id, number=idea.number, title=idea.title, line_name=line, author_name=author,
-                author_sector=sector, coauthors=n_coauthors, submitted_at=idea.submitted_at))
+                author_sector=sector, coauthors=n_coauthors, submitted_at=idea.submitted_at,
+                reviews_done=reviews.get(idea.id, 0), reviews_total=totals.get(idea.id, 0)))
     return BoardOut(campaigns=[BoardCampaign(id=c.id, title=c.title) for c in campaigns], campaign_id=campaign_id,
                     columns=[BoardColumn(key=key, label=label, cards=cards[key]) for key, label in BOARD_COLUMNS])
