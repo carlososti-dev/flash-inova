@@ -252,3 +252,18 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .board-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .65rem .75rem; display: grid; gap: .3rem; text-decoration: none; color: var(--text); justify-items: start; }
 .board-card:hover { border-color: var(--primary); }
 .board-card small { margin: 0; }
+
+/* Análise */
+.board-4 { grid-auto-columns: minmax(220px, 1fr); }
+.col-classificadas { border-top: 4px solid var(--ok); }
+.col-nao_classificadas { border-top: 4px solid var(--muted); }
+.col-talvez { border-top: 4px solid #d08700; }
+.col-para_analise { border-top: 4px solid var(--primary); }
+.verdict-classificar.stage, .stage.verdict-classificar { background: var(--ok-soft); color: var(--ok); }
+.stage.verdict-talvez { background: #fff4e0; color: #9a5b00; }
+.stage.verdict-nao_classificar { background: var(--bg); color: var(--muted); }
+.verdicts { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.verdicts:disabled { opacity: .7; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.table-narrow { min-width: 0; }
+.stats strong { color: var(--text); }

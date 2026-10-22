@@ -5,8 +5,10 @@ import type { Role } from './api'
 import { AuthCard, Notice } from './components'
 import Admin from './pages/Admin'
 import ForgotPassword from './pages/ForgotPassword'
+import Analysis from './pages/Analysis'
+import AssignmentPage from './pages/Assignment'
 import Board from './pages/Board'
-import Home, { Regulation, Soon } from './pages/Home'
+import Home, { Regulation } from './pages/Home'
 import IdeaEditor from './pages/IdeaEditor'
 import IdeaView from './pages/IdeaView'
 import MyIdeas from './pages/MyIdeas'
@@ -54,7 +56,8 @@ function App() {
           <Route path="/ideias/:id/editar" element={<Guard><IdeaEditor /></Guard>} />
           <Route path="/ideias/:id" element={<Guard><IdeaView /></Guard>} />
           <Route path="/minhas-ideias" element={<Guard><MyIdeas /></Guard>} />
-          <Route path="/analise" element={<Guard roles={['administrador', 'consultor', 'membro_comite']}><Soon title="Análise" slice="fatia de avaliação" /></Guard>} />
+          <Route path="/analise" element={<Guard roles={['administrador', 'consultor', 'membro_comite']}><Analysis /></Guard>} />
+          <Route path="/analise/:id" element={<Guard roles={['administrador', 'consultor', 'membro_comite']}><AssignmentPage /></Guard>} />
           <Route path="/classificacao" element={<Guard roles={['administrador', 'consultor', 'gestor']}><Board /></Guard>} />
           <Route path="/administracao" element={<Guard roles={['administrador', 'consultor']}><Admin /></Guard>} />
         </>

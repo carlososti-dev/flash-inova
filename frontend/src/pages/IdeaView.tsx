@@ -29,7 +29,7 @@ export default function IdeaView() {
             <dt>Autor</dt><dd>{idea.author_name}</dd>
             {idea.coauthors.length > 0 && <><dt>Coautores</dt><dd>{idea.coauthors.map((p) => p.name).join(', ')}</dd></>}
             <dt>Resumo</dt><dd className="prose">{idea.summary || '—'}</dd>
-            {idea.answers.map((a) => <Answer key={a.field_id} ideaId={idea.id} a={a} />)}
+            {idea.answers.map((a) => <Answer key={a.field_id} a={a} fileUrl={`/api/ideas/${idea.id}/files/${a.field_id}`} />)}
           </dl>
         </section>
         <p className="muted">
@@ -41,13 +41,13 @@ export default function IdeaView() {
   )
 }
 
-function Answer({ ideaId, a }: { ideaId: string; a: IdeaAnswer }) {
+export function Answer({ a, fileUrl }: { a: IdeaAnswer; fileUrl: string }) {
   const [error, setError] = useState<string | null>(null)
   let value: ReactNode = typeof a.value === 'boolean' ? (a.value ? 'Sim' : 'Não') : a.value
   if (a.kind === 'anexo') {
     value = (
       <>
-        <button className="link link-btn" onClick={() => download(`/api/ideas/${ideaId}/files/${a.field_id}`, a.file_name ?? 'anexo')
+        <button className="link link-btn" onClick={() => download(fileUrl, a.file_name ?? 'anexo')
           .catch((e) => setError(e.message))}>📎 {a.file_name}</button> <small className="muted">{fmtSize(a.file_size)}</small>
         {error && <Notice kind="error">{error}</Notice>}
       </>

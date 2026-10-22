@@ -4,6 +4,7 @@ Fatia 1: base para vários hospitais, login por e-mail e identidade de cada hosp
 Fatia 2: lista de autorizados, primeiro acesso por matrícula e e-mail, gestão de usuários.
 Fatia 3: campanhas (datas das fases, linhas de ideias, textos, banner, vídeo, regulamento e regras) e a página inicial da campanha.
 Fatia 4: envio de ideias (formulário configurável, rascunho e envio, coautores, aceite do regulamento), Minhas ideias e o kanban da Classificação.
+Fatia 5: distribuição das ideias para o comitê e o menu Análise (parecer de cada avaliador).
 
 - **Backend**: Python, FastAPI, SQLAlchemy, PostgreSQL (`backend/`)
 - **Frontend**: React + Vite + TypeScript (`frontend/`)
@@ -32,6 +33,8 @@ Fatia 4: envio de ideias (formulário configurável, rascunho e envio, coautores
 - **Aceite do regulamento**: obrigatório para enviar; cada texto salvo do regulamento vira uma versão, e a ideia guarda a versão aceita e a data.
 - **Minhas ideias**: as ideias da pessoa (autora ou coautora) e a etapa de cada uma.
 - **Classificação (kanban)** para administrador, consultor e gestor: colunas Recebidas → Em análise → Empate → Classificadas / Talvez / Não classificadas → Shortlist → Selecionadas → Premiadas. Os cartões não são arrastados; mudam pelas ações do processo (nesta fatia, só "Recebidas" recebe cartões).
+- **Distribuição para o comitê** (Administração > Campanhas > Configurar): depois do fim das inscrições, o administrador distribui as ideias recebidas. Cada uma vai para N membros do comitê (regra "avaliadores por ideia"), escolhidos pela menor carga; empate vai para quem recebeu há mais tempo. Ninguém avalia ideia de que é autor ou coautor. As ideias passam para "Em análise" e a campanha para a fase Análise.
+- **Menu Análise** (membro de comitê): kanban pessoal com Para análise, Classificadas, Não classificadas e Talvez. Só mostra ideias depois da distribuição. No duplo-cego o avaliador não vê autor nem coautores. "Talvez" exige comentário. Dentro do período da análise (datas da campanha) o avaliador pode reavaliar ou desfazer o parecer quantas vezes quiser; fora dele, só lê. Todo parecer fica na auditoria.
 
 ## Rodar localmente
 

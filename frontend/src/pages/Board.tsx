@@ -43,6 +43,7 @@ export default function Board() {
                     <small className="muted">#{card.number} · {fmtDate(card.submitted_at)}</small>
                     <strong>{card.title}</strong>
                     {card.line_name && <span className="tag tag-info">{card.line_name}</span>}
+                    {card.reviews_total > 0 && <small className="muted">pareceres: {card.reviews_done} de {card.reviews_total}</small>}
                     <small>{card.author_name}{card.author_sector && ` · ${card.author_sector}`}{card.coauthors > 0 && ` +${card.coauthors}`}</small>
                   </Link>
                 ))}

@@ -154,11 +154,3 @@ export function Regulation() {
     </Layout>
   )
 }
-
-export function Soon({ title, slice }: { title: string; slice: string }) {
-  return (
-    <Layout>
-      <section className="card"><h1>{title}</h1><p className="muted">Esta área chega na {slice}.</p></section>
-    </Layout>
-  )
-}
