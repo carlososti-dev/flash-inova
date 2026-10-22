@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field, field_validator
 
-from .models import CampaignPhase, Role, Theme, UserStatus
+from .models import CampaignPhase, FieldKind, IdeaStage, Role, Theme, UserStatus
 
 
 class TenantPublic(BaseModel):
@@ -246,6 +246,38 @@ class CampaignSummary(BaseModel):
     active_lines: int
 
 
+class CampaignFieldIn(BaseModel):
+    kind: FieldKind
+    label: str = Field(min_length=2, max_length=200)
+    help_text: str | None = Field(default=None, max_length=500)
+    required: bool = False
+    options: list[str] | None = None
+
+
+class CampaignFieldUpdate(BaseModel):
+    label: str | None = Field(default=None, min_length=2, max_length=200)
+    help_text: str | None = Field(default=None, max_length=500)
+    required: bool | None = None
+    options: list[str] | None = None
+    is_active: bool | None = None
+
+
+class CampaignFieldOrder(BaseModel):
+    ids: list[uuid.UUID]
+
+
+class CampaignFieldOut(BaseModel):
+    id: uuid.UUID
+    kind: FieldKind
+    label: str
+    help_text: str | None
+    required: bool
+    options: list[str] | None
+    position: int
+    is_active: bool
+    answers: int = 0
+
+
 class CampaignAdminOut(CampaignSummary):
     analysis_start: datetime | None
     analysis_end: datetime | None
@@ -268,6 +300,9 @@ class CampaignAdminOut(CampaignSummary):
     num_voting_finalists: int | None
     num_winners: int
     lines: list[CampaignLineOut]
+    fields: list[CampaignFieldOut]
+    regulation_version: int | None
+    ideas_submitted: int
 
 
 class CampaignPublic(BaseModel):
@@ -279,6 +314,8 @@ class CampaignPublic(BaseModel):
     home_text: str | None
     tips_text: str | None
     regulation_text: str | None
+    regulation_version: int | None
+    regulation_updated_at: datetime | None
     banner_url: str | None
     video_embed_url: str | None
     submission_start: datetime
@@ -288,3 +325,105 @@ class CampaignPublic(BaseModel):
     phases: list[PhaseOut]
     num_winners: int
     lines: list[CampaignLineOut]
+
+
+# ---------- Ideias ----------
+
+AnswerValue = str | bool | None
+
+
+class IdeaIn(BaseModel):
+    title: str = Field(min_length=3, max_length=200)
+    line_id: uuid.UUID | None = None
+    summary: str | None = Field(default=None, max_length=2000)
+    answers: dict[uuid.UUID, AnswerValue] = Field(default_factory=dict)
+    coauthor_ids: list[uuid.UUID] = Field(default_factory=list, max_length=10)
+
+
+class IdeaCreate(IdeaIn):
+    campaign_id: uuid.UUID
+
+
+class SubmitIn(BaseModel):
+    accept_regulation: bool = False
+
+
+class PersonOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    sector: str | None
+
+
+class AnswerOut(BaseModel):
+    field_id: uuid.UUID
+    label: str
+    kind: FieldKind
+    value: AnswerValue
+    file_name: str | None = None
+    file_size: int | None = None
+
+
+class IdeaFormOut(BaseModel):
+    """O que o formulário de envio precisa: linhas e campos ativos, período e regulamento."""
+    campaign_id: uuid.UUID
+    campaign_title: str
+    submission_state: str
+    submission_start: datetime
+    submission_end: datetime
+    lines: list[CampaignLineOut]
+    fields: list[CampaignFieldOut]
+    regulation_version: int | None
+    max_attachment_mb: int
+
+
+class IdeaSummary(BaseModel):
+    id: uuid.UUID
+    campaign_id: uuid.UUID
+    campaign_title: str
+    number: int | None
+    title: str
+    line_name: str | None
+    stage: IdeaStage
+    stage_label: str
+    role: str  # autor | coautor
+    submitted_at: datetime | None
+    updated_at: datetime
+    can_edit: bool
+
+
+class IdeaOut(IdeaSummary):
+    line_id: uuid.UUID | None
+    summary: str | None
+    author_name: str
+    answers: list[AnswerOut]
+    coauthors: list[PersonOut]
+    regulation_version: int | None
+    regulation_accepted_at: datetime | None
+
+
+class BoardCard(BaseModel):
+    id: uuid.UUID
+    number: int | None
+    title: str
+    line_name: str | None
+    author_name: str
+    author_sector: str | None
+    coauthors: int
+    submitted_at: datetime | None
+
+
+class BoardColumn(BaseModel):
+    key: str
+    label: str
+    cards: list[BoardCard]
+
+
+class BoardCampaign(BaseModel):
+    id: uuid.UUID
+    title: str
+
+
+class BoardOut(BaseModel):
+    campaigns: list[BoardCampaign]
+    campaign_id: uuid.UUID | None
+    columns: list[BoardColumn]

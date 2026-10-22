@@ -33,6 +33,9 @@ function errorMessage(body: unknown): string {
     if (field === 'default_role') return 'Perfil inicial deve ser colaborador, membro de comitê ou gestor.'
     if (field === 'name') return 'O nome deve ter pelo menos 2 caracteres.'
     if (field === 'title') return 'O título deve ter pelo menos 3 caracteres.'
+    if (field === 'label') return 'O nome do campo deve ter pelo menos 2 caracteres.'
+    if (field === 'summary') return 'O resumo deve ter no máximo 2000 caracteres.'
+    if (field === 'coauthor_ids') return 'A ideia pode ter no máximo 10 coautores.'
     return 'Confira os campos preenchidos.'
   }
   return 'Não foi possível concluir. Tente novamente.'
@@ -111,15 +114,58 @@ export interface CampaignAdmin extends CampaignSummary {
   banner_url: string | null; video_url: string | null
   num_evaluators: number; weight_classify: number; weight_maybe: number; cutoff_score: number; blind_review: boolean
   num_defense_finalists: number | null; num_voting_finalists: number | null; num_winners: number
-  lines: CampaignLine[]
+  lines: CampaignLine[]; fields: CampaignField[]; regulation_version: number | null; ideas_submitted: number
 }
 export interface PhaseInfo { key: string; label: string; start: string | null; end: string | null }
 export interface CampaignPublic {
   id: string; title: string; is_published: boolean; home_headline: string | null; home_text: string | null
-  tips_text: string | null; regulation_text: string | null; banner_url: string | null; video_embed_url: string | null
+  tips_text: string | null; regulation_text: string | null; regulation_version: number | null
+  regulation_updated_at: string | null; banner_url: string | null; video_embed_url: string | null
   submission_start: string; submission_end: string; submission_state: SubmissionState; current_phase: CampaignPhase
   phases: PhaseInfo[]; num_winners: number; lines: CampaignLine[]
 }
+
+export type FieldKind = 'texto_curto' | 'texto_longo' | 'lista' | 'sim_nao' | 'anexo'
+export const FIELD_KIND_LABELS: Record<FieldKind, string> = {
+  texto_curto: 'Texto curto', texto_longo: 'Texto longo', lista: 'Lista de opções', sim_nao: 'Sim ou não', anexo: 'Anexo',
+}
+export interface CampaignField {
+  id: string; kind: FieldKind; label: string; help_text: string | null; required: boolean
+  options: string[] | null; position: number; is_active: boolean; answers: number
+}
+
+export type IdeaStage = 'rascunho' | 'recebida' | 'em_analise' | 'empate' | 'classificada' | 'talvez'
+  | 'nao_classificada' | 'shortlist' | 'selecionada' | 'premiada'
+export type AnswerValue = string | boolean | null
+export interface Person { id: string; name: string; sector: string | null }
+export interface IdeaForm {
+  campaign_id: string; campaign_title: string; submission_state: SubmissionState; submission_start: string
+  submission_end: string; lines: CampaignLine[]; fields: CampaignField[]; regulation_version: number | null
+  max_attachment_mb: number
+}
+export interface IdeaSummary {
+  id: string; campaign_id: string; campaign_title: string; number: number | null; title: string
+  line_name: string | null; stage: IdeaStage; stage_label: string; role: 'autor' | 'coautor' | 'acompanha'
+  submitted_at: string | null; updated_at: string; can_edit: boolean
+}
+export interface IdeaAnswer {
+  field_id: string; label: string; kind: FieldKind; value: AnswerValue; file_name: string | null; file_size: number | null
+}
+export interface Idea extends IdeaSummary {
+  line_id: string | null; summary: string | null; author_name: string; answers: IdeaAnswer[]; coauthors: Person[]
+  regulation_version: number | null; regulation_accepted_at: string | null
+}
+export interface BoardCard {
+  id: string; number: number | null; title: string; line_name: string | null; author_name: string
+  author_sector: string | null; coauthors: number; submitted_at: string | null
+}
+export interface Board {
+  campaigns: { id: string; title: string }[]; campaign_id: string | null
+  columns: { key: string; label: string; cards: BoardCard[] }[]
+}
+
+export const fmtSize = (bytes: number | null) =>
+  bytes == null ? '' : bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
 export const PHASE_LABELS: Record<CampaignPhase, string> = {
   recepcao: 'Recepção de ideias', analise: 'Análise', classificacao: 'Classificação', defesa: 'Defesa',

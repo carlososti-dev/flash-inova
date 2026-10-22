@@ -26,8 +26,11 @@ class Settings(BaseSettings):
     email_from: str = "nao-responda@flashinova.local"
 
     storage_dir: str = "storage"
+    # Anexos das ideias: fora da pasta pública /files; só saem pela API, com conferência de permissão.
+    private_storage_dir: str = "storage_private"
     max_logo_bytes: int = 2 * 1024 * 1024
     max_banner_bytes: int = 5 * 1024 * 1024
+    max_attachment_bytes: int = 10 * 1024 * 1024
 
     reset_token_hours: int = 1
     activation_token_hours: int = 72

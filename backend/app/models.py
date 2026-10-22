@@ -178,6 +178,91 @@ class CampaignLine(Timestamps, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class RegulationVersion(Timestamps, Base):
+    """Cada texto do regulamento publicado fica guardado: o aceite de quem envia aponta para a versão aceita."""
+    __tablename__ = "regulation_versions"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("campaigns.id", ondelete="CASCADE"))
+    version: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+
+
+class FieldKind(str, enum.Enum):
+    texto_curto = "texto_curto"
+    texto_longo = "texto_longo"
+    lista = "lista"
+    sim_nao = "sim_nao"
+    anexo = "anexo"
+
+
+class CampaignField(Timestamps, Base):
+    """Campo configurável do formulário de envio (título, linha e resumo são fixos e não ficam aqui)."""
+    __tablename__ = "campaign_fields"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("campaigns.id", ondelete="CASCADE"))
+    kind: Mapped[FieldKind] = mapped_column(_enum(FieldKind, "field_kind"))
+    label: Mapped[str] = mapped_column(String(200))
+    help_text: Mapped[str | None] = mapped_column(String(500))
+    required: Mapped[bool] = mapped_column(Boolean, default=False)
+    options: Mapped[list | None] = mapped_column(JSONB)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class IdeaStage(str, enum.Enum):
+    rascunho = "rascunho"
+    recebida = "recebida"
+    em_analise = "em_analise"
+    empate = "empate"
+    classificada = "classificada"
+    talvez = "talvez"
+    nao_classificada = "nao_classificada"
+    shortlist = "shortlist"
+    selecionada = "selecionada"
+    premiada = "premiada"
+
+
+class Idea(Timestamps, Base):
+    __tablename__ = "ideas"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("campaigns.id"))
+    line_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("campaign_lines.id"))
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    # Número sequencial na campanha, dado no primeiro envio (#1, #2...).
+    number: Mapped[int | None] = mapped_column(Integer)
+    title: Mapped[str] = mapped_column(String(200))
+    summary: Mapped[str | None] = mapped_column(Text)
+    stage: Mapped[IdeaStage] = mapped_column(_enum(IdeaStage, "idea_stage"), default=IdeaStage.rascunho)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    regulation_version_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("regulation_versions.id"))
+    regulation_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class IdeaAnswer(Timestamps, Base):
+    __tablename__ = "idea_answers"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    idea_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ideas.id", ondelete="CASCADE"))
+    field_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("campaign_fields.id"))
+    # Texto, opção escolhida ou sim/não; anexos usam as colunas file_*.
+    value: Mapped[object | None] = mapped_column(JSONB)
+    file_path: Mapped[str | None] = mapped_column(String(500))
+    file_name: Mapped[str | None] = mapped_column(String(255))
+    file_size: Mapped[int | None] = mapped_column(Integer)
+
+
+class IdeaCoauthor(Timestamps, Base):
+    __tablename__ = "idea_coauthors"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    idea_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ideas.id", ondelete="CASCADE"))
+    member_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("authorized_members.id"))
+
+
 class AuditLog(Base):
     __tablename__ = "audit_log"
 

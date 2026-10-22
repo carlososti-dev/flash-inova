@@ -103,7 +103,7 @@ function CampaignPage({ c }: { c: CampaignPublic }) {
       <div className="cta">
         {c.regulation_text && <Link className="link" to={`/campanhas/${c.id}/regulamento`}>Leia o regulamento</Link>}
         {open
-          ? <Link className="btn btn-primary btn-lg" to="/enviar-projeto">Enviar projeto</Link>
+          ? <Link className="btn btn-primary btn-lg" to={`/ideias/nova?campanha=${c.id}`}>Enviar projeto</Link>
           : <button className="btn btn-primary btn-lg" disabled>Enviar projeto</button>}
         {!open && <small className="muted">{c.submission_state === 'antes' ? 'O botão é liberado quando as inscrições abrirem.' : 'Inscrições de projetos encerradas.'}</small>}
       </div>
@@ -144,7 +144,10 @@ export function Regulation() {
         <article className="card">
           <p><Link className="link" to={campaign.is_published ? '/' : `/campanhas/${campaign.id}`}>← Voltar</Link></p>
           <h1>Regulamento</h1>
-          <p className="muted">{campaign.title}</p>
+          <p className="muted">
+            {campaign.title}
+            {campaign.regulation_version && <> · versão {campaign.regulation_version}, de {fmtDate(campaign.regulation_updated_at)}</>}
+          </p>
           {campaign.regulation_text ? <Paragraphs text={campaign.regulation_text} /> : <p className="muted">O regulamento ainda não foi publicado.</p>}
         </article>
       )}

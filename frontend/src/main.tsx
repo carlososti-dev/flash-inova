@@ -5,7 +5,11 @@ import type { Role } from './api'
 import { AuthCard, Notice } from './components'
 import Admin from './pages/Admin'
 import ForgotPassword from './pages/ForgotPassword'
+import Board from './pages/Board'
 import Home, { Regulation, Soon } from './pages/Home'
+import IdeaEditor from './pages/IdeaEditor'
+import IdeaView from './pages/IdeaView'
+import MyIdeas from './pages/MyIdeas'
 import Login from './pages/Login'
 import Platform from './pages/Platform'
 import Register from './pages/Register'
@@ -46,9 +50,12 @@ function App() {
           <Route path="/" element={<Guard><Home /></Guard>} />
           <Route path="/campanhas/:id" element={<Guard><Home /></Guard>} />
           <Route path="/campanhas/:id/regulamento" element={<Guard><Regulation /></Guard>} />
-          <Route path="/enviar-projeto" element={<Guard><Soon title="Envio de projeto" slice="próxima fatia (envio de ideias)" /></Guard>} />
+          <Route path="/ideias/nova" element={<Guard><IdeaEditor /></Guard>} />
+          <Route path="/ideias/:id/editar" element={<Guard><IdeaEditor /></Guard>} />
+          <Route path="/ideias/:id" element={<Guard><IdeaView /></Guard>} />
+          <Route path="/minhas-ideias" element={<Guard><MyIdeas /></Guard>} />
           <Route path="/analise" element={<Guard roles={['administrador', 'consultor', 'membro_comite']}><Soon title="Análise" slice="fatia de avaliação" /></Guard>} />
-          <Route path="/classificacao" element={<Guard roles={['administrador', 'consultor']}><Soon title="Classificação" slice="fatia de avaliação" /></Guard>} />
+          <Route path="/classificacao" element={<Guard roles={['administrador', 'consultor', 'gestor']}><Board /></Guard>} />
           <Route path="/administracao" element={<Guard roles={['administrador', 'consultor']}><Admin /></Guard>} />
         </>
       ) : (

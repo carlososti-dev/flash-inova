@@ -185,3 +185,70 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .cta { display: grid; justify-items: center; gap: .6rem; padding: 1rem 0; text-align: center; }
 .btn-lg { padding: .85rem 2rem; font-size: 1.05rem; }
 .cta .btn:disabled { cursor: not-allowed; }
+
+/* Ideias: formulário de envio */
+.req { color: var(--danger); margin-left: .15rem; }
+.help { font-weight: 400; color: var(--muted); font-size: .85rem; }
+.counter { font-weight: 400; color: var(--muted); font-size: .8rem; justify-self: end; }
+.choices { border: 0; padding: 0; margin: 0; display: grid; gap: .5rem; }
+.choices legend { font-size: .9rem; font-weight: 600; padding: 0; margin-bottom: .4rem; display: grid; gap: .2rem; }
+.choices-inline { grid-template-columns: repeat(auto-fit, minmax(110px, max-content)); }
+.form .choice { display: flex; align-items: flex-start; gap: .6rem; padding: .65rem .8rem; border: 1px solid var(--border); border-radius: 8px; font-weight: 400; cursor: pointer; }
+.choice span { display: grid; gap: .15rem; }
+.choice small { color: var(--muted); }
+.choice-on { border-color: var(--primary) !important; background: var(--primary-soft); }
+.choice input { margin-top: .2rem; }
+.file-field { display: grid; gap: .4rem; }
+.file-label { display: grid; gap: .2rem; font-size: .9rem; font-weight: 600; }
+.file-current { overflow-wrap: anywhere; }
+.file-btn { position: relative; overflow: hidden; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.accept { align-items: flex-start !important; font-weight: 400 !important; line-height: 1.5; }
+.accept input { margin-top: .3rem; }
+.chips { list-style: none; padding: 0; margin: 0 0 .75rem; display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip { display: inline-flex; align-items: center; gap: .3rem; padding: .3rem .4rem .3rem .7rem; border-radius: 999px; background: var(--primary-soft); color: var(--primary-strong); font-weight: 600; font-size: .9rem; }
+.chip small { font-weight: 400; }
+.chip button { border: 0; background: none; color: inherit; font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 0 .3rem; }
+.search-results { list-style: none; padding: 0; margin: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.search-results button { width: 100%; text-align: left; background: #fff; border: 0; border-bottom: 1px solid var(--border); padding: .6rem .75rem; font: inherit; cursor: pointer; }
+.search-results li:last-child button { border-bottom: 0; }
+.search-results button:hover { background: var(--primary-soft); }
+.span-all { grid-column: 1 / -1; }
+.field-new { border: 1px dashed var(--border); border-radius: 8px; padding: .75rem; }
+.row-fixed { background: var(--bg); }
+.field-title { display: grid; gap: .2rem; }
+.push-right { margin-left: auto; }
+.accept { gap: .6rem; }
+.idea-editor input, .idea-editor textarea, .idea-editor select { font-weight: 400; }
+.idea-editor textarea, .idea-editor select { font: inherit; padding: .6rem .75rem; border: 1px solid var(--border); border-radius: 8px; background: #fff; width: 100%; }
+
+/* Minhas ideias e leitura */
+.idea-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .75rem; }
+.idea-item { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; }
+.idea-main { display: grid; gap: .2rem; min-width: 0; justify-items: start; }
+.idea-main small { margin: 0; }
+.idea-title { color: var(--text); font-weight: 700; font-size: 1.05rem; text-decoration: none; overflow-wrap: anywhere; }
+.idea-title:hover { color: var(--primary); }
+.stage { display: inline-block; font-size: .75rem; font-weight: 700; padding: .15rem .55rem; border-radius: 999px; background: var(--primary-soft); color: var(--primary-strong); text-transform: uppercase; letter-spacing: .03em; }
+.stage-rascunho { background: #fff4e0; color: #9a5b00; }
+.stage-nao_classificada { background: var(--bg); color: var(--muted); }
+.stage-selecionada, .stage-premiada { background: var(--ok-soft); color: var(--ok); }
+.answers { margin: 0; display: grid; gap: .3rem; }
+.answers dt { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 700; margin-top: .75rem; }
+.answers dt:first-child { margin-top: 0; }
+.answers dd { margin: 0; }
+.idea-view h1 { margin-top: .5rem; }
+
+/* Kanban (Classificação) */
+.page:has(.board) { max-width: 1400px; }
+.board-head { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; justify-content: space-between; }
+.board-head > div { flex: 1 1 420px; }
+.board-select { font: inherit; padding: .55rem .7rem; border: 1px solid var(--border); border-radius: 8px; background: #fff; max-width: 100%; }
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: .75rem; overflow-x: auto; padding-bottom: .75rem; align-items: start; }
+.board-col { background: #e9edf2; border-radius: var(--radius); padding: .75rem; display: grid; gap: .5rem; min-height: 120px; align-content: start; }
+.board-col h2 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin: 0 0 .25rem; display: flex; justify-content: space-between; color: var(--muted); }
+.board-col-empty { opacity: .7; }
+.count { background: var(--surface); border-radius: 999px; padding: 0 .5rem; font-size: .8rem; }
+.board-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .65rem .75rem; display: grid; gap: .3rem; text-decoration: none; color: var(--text); justify-items: start; }
+.board-card:hover { border-color: var(--primary); }
+.board-card small { margin: 0; }

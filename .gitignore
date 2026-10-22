@@ -4,5 +4,6 @@ __pycache__/
 .pytest_cache/
 backend/.env
 backend/storage/
+backend/storage_private/
 frontend/node_modules/
 frontend/dist/
