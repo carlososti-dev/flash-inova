@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
   api, fmtDate, FIELD_KIND_LABELS, PHASE_LABELS, type CampaignAdmin, type CampaignLine,
-  type CampaignSummary, type FieldKind, type SubmissionState,
+  type CampaignSummary, type Distribution, type FieldKind, type SubmissionState,
 } from '../api'
 import { Notice, useSubmit } from '../components'
 
@@ -176,6 +176,7 @@ function CampaignEditor({ id, onClose }: { id: string; onClose: () => void }) {
 
       <Lines campaign={c} onChange={setC} onError={setError} />
       <FormFields campaign={c} onChange={setC} onError={setError} />
+      {c.is_published && <DistributionCard campaignId={c.id} onDone={() => api<CampaignAdmin>(`/api/admin/campaigns/${id}`).then(setC)} />}
       <Banner campaign={c} call={call} />
 
       <form className="stack" onSubmit={onSubmit}>
@@ -433,5 +434,67 @@ function FieldEdit({ initial, kindLocked, onSave, onCancel }: { initial: FieldDr
         </div>
       </form>
     </Wrapper>
+  )
+}
+
+/* ---------------- Distribuição para o comitê ---------------- */
+
+function DistributionCard({ campaignId, onDone }: { campaignId: string; onDone: () => void }) {
+  const [d, setD] = useState<Distribution | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [ok, setOk] = useState<string | null>(null)
+  const url = `/api/admin/campaigns/${campaignId}/distribution`
+  useEffect(() => { api<Distribution>(url).then(setD).catch((e) => setError(errText(e))) }, [url])
+
+  async function distribute() {
+    if (!d || !window.confirm(`Distribuir ${d.pending} ideia(s) para o comitê, ${d.num_evaluators} avaliador(es) por ideia? As ideias passam para "Em análise" e não poderão mais ser editadas pelos autores.`)) return
+    setBusy(true); setError(null); setOk(null)
+    try {
+      const pending = d.pending
+      setD(await api<Distribution>(url, { method: 'POST' }))
+      setOk(`${pending} ideia(s) distribuída(s). Os avaliadores já as veem no menu Análise.`)
+      onDone()
+    } catch (e) { setError(errText(e)) } finally { setBusy(false) }
+  }
+
+  return (
+    <section className="card">
+      <h2>Distribuição para o comitê</h2>
+      <p className="muted">
+        Cada ideia recebida vai para {d?.num_evaluators ?? '…'} membro(s) do comitê, escolhidos pela menor carga (empate: quem recebeu há mais tempo).
+        Ninguém avalia ideia de que é autor ou coautor. Os avaliadores só veem as ideias depois da distribuição.
+      </p>
+      {error && <Notice kind="error">{error}</Notice>}
+      {ok && <Notice kind="ok">{ok}</Notice>}
+      {d && (
+        <>
+          <p className="stats">
+            <strong>{d.pending}</strong> aguardando distribuição · <strong>{d.distributed}</strong> distribuída(s) · comitê com <strong>{d.committee}</strong> membro(s) ativo(s)
+          </p>
+          {d.blocker && d.pending > 0 && <Notice kind="error">Distribuição bloqueada: {d.blocker}</Notice>}
+          {d.pending > 0 && (
+            <div className="actions">
+              <button className="btn btn-primary" disabled={busy || d.blocker !== null} onClick={distribute}>
+                {busy ? 'Distribuindo…' : `Distribuir ${d.pending} ideia(s)`}
+              </button>
+            </div>
+          )}
+          {d.evaluators.length > 0 && (
+            <div className="table-wrap">
+              <table className="table table-narrow">
+                <thead><tr><th>Avaliador</th><th>Setor</th><th>Ideias</th><th>Com parecer</th></tr></thead>
+                <tbody>
+                  {d.evaluators.map((e) => (
+                    <tr key={e.id}><td>{e.name}</td><td>{e.sector ?? '—'}</td><td>{e.assigned}</td><td>{e.evaluated}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {d.committee === 0 && <p className="muted">Ninguém tem o perfil Membro de comitê ainda. Ajuste em Administração › Usuários.</p>}
+        </>
+      )}
+    </section>
   )
 }

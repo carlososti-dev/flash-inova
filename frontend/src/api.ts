@@ -158,10 +158,32 @@ export interface Idea extends IdeaSummary {
 export interface BoardCard {
   id: string; number: number | null; title: string; line_name: string | null; author_name: string
   author_sector: string | null; coauthors: number; submitted_at: string | null
+  reviews_done: number; reviews_total: number
 }
 export interface Board {
   campaigns: { id: string; title: string }[]; campaign_id: string | null
   columns: { key: string; label: string; cards: BoardCard[] }[]
+}
+
+export type Verdict = 'classificar' | 'talvez' | 'nao_classificar'
+export const VERDICT_LABELS: Record<Verdict, string> = { classificar: 'Classificar', talvez: 'Talvez', nao_classificar: 'Não classificar' }
+export interface Distribution {
+  submission_state: SubmissionState; pending: number; distributed: number; num_evaluators: number; committee: number
+  blocker: string | null
+  evaluators: { id: string; name: string; sector: string | null; assigned: number; evaluated: number }[]
+}
+export type EvaluationState = 'antes' | 'aberta' | 'encerrada'
+export interface AnalysisBoard {
+  overview: boolean; evaluators: { id: string; title: string }[]; evaluator_id: string | null
+  campaigns: { id: string; title: string }[]; campaign_id: string | null; evaluation_state: EvaluationState | null
+  analysis_start: string | null; analysis_end: string | null
+  columns: { key: string; label: string; cards: { assignment_id: string; idea_id: string; evaluator_name: string | null; number: number | null; title: string; line_name: string | null; evaluated_at: string | null }[] }[]
+}
+export interface Assignment {
+  id: string; campaign_title: string; number: number | null; title: string; line_name: string | null
+  summary: string | null; answers: IdeaAnswer[]; author_name: string | null; coauthors: string[] | null
+  verdict: Verdict | null; comment: string | null; evaluated_at: string | null; evaluation_state: EvaluationState
+  analysis_end: string | null; can_evaluate: boolean
 }
 
 export const fmtSize = (bytes: number | null) =>

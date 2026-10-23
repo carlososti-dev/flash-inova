@@ -61,7 +61,7 @@ def owner_engine():
 @pytest.fixture(autouse=True)
 def clean(owner_engine):
     with owner_engine.begin() as c:
-        c.execute(text("TRUNCATE idea_coauthors, idea_answers, ideas, campaign_fields, regulation_versions, campaign_lines, campaigns, audit_log, auth_tokens, authorized_members, users, tenants CASCADE"))
+        c.execute(text("TRUNCATE assignments, idea_coauthors, idea_answers, ideas, campaign_fields, regulation_versions, campaign_lines, campaigns, audit_log, auth_tokens, authorized_members, users, tenants CASCADE"))
     get_email_sender().outbox.clear()
     yield
 

@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field, field_validator
 
-from .models import CampaignPhase, FieldKind, IdeaStage, Role, Theme, UserStatus
+from .models import CampaignPhase, FieldKind, IdeaStage, Role, Theme, UserStatus, Verdict
 
 
 class TenantPublic(BaseModel):
@@ -410,6 +410,8 @@ class BoardCard(BaseModel):
     author_sector: str | None
     coauthors: int
     submitted_at: datetime | None
+    reviews_done: int = 0
+    reviews_total: int = 0
 
 
 class BoardColumn(BaseModel):
@@ -427,3 +429,74 @@ class BoardOut(BaseModel):
     campaigns: list[BoardCampaign]
     campaign_id: uuid.UUID | None
     columns: list[BoardColumn]
+
+
+# ---------- Análise ----------
+
+class EvaluatorLoad(BaseModel):
+    id: uuid.UUID
+    name: str
+    sector: str | None
+    assigned: int
+    evaluated: int
+
+
+class DistributionOut(BaseModel):
+    submission_state: str
+    pending: int  # ideias recebidas ainda não distribuídas
+    distributed: int
+    num_evaluators: int
+    committee: int
+    blocker: str | None
+    evaluators: list[EvaluatorLoad]
+
+
+class AnalysisCard(BaseModel):
+    assignment_id: uuid.UUID
+    idea_id: uuid.UUID
+    evaluator_name: str | None = None  # só na visão geral (administrador e consultor)
+    number: int | None
+    title: str
+    line_name: str | None
+    evaluated_at: datetime | None
+
+
+class AnalysisColumn(BaseModel):
+    key: str
+    label: str
+    cards: list[AnalysisCard]
+
+
+class AnalysisBoardOut(BaseModel):
+    overview: bool  # administrador e consultor: todas as atribuições, só para acompanhar
+    evaluators: list[BoardCampaign]  # filtro da visão geral (id e nome)
+    evaluator_id: uuid.UUID | None
+    campaigns: list[BoardCampaign]
+    campaign_id: uuid.UUID | None
+    evaluation_state: str | None
+    analysis_start: datetime | None
+    analysis_end: datetime | None
+    columns: list[AnalysisColumn]
+
+
+class AssignmentOut(BaseModel):
+    id: uuid.UUID
+    campaign_title: str
+    number: int | None
+    title: str
+    line_name: str | None
+    summary: str | None
+    answers: list[AnswerOut]
+    author_name: str | None  # vazio no duplo-cego
+    coauthors: list[str] | None
+    verdict: Verdict | None
+    comment: str | None
+    evaluated_at: datetime | None
+    evaluation_state: str
+    analysis_end: datetime | None
+    can_evaluate: bool
+
+
+class VerdictIn(BaseModel):
+    verdict: Verdict | None = None
+    comment: str | None = Field(default=None, max_length=5000)

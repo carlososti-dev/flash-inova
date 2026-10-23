@@ -263,6 +263,25 @@ class IdeaCoauthor(Timestamps, Base):
     member_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("authorized_members.id"))
 
 
+class Verdict(str, enum.Enum):
+    classificar = "classificar"
+    talvez = "talvez"
+    nao_classificar = "nao_classificar"
+
+
+class Assignment(Timestamps, Base):
+    """Ideia distribuída a um membro do comitê, com o parecer dele (vazio enquanto não avaliou)."""
+    __tablename__ = "assignments"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("campaigns.id"))
+    idea_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ideas.id"))
+    evaluator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    verdict: Mapped[Verdict | None] = mapped_column(_enum(Verdict, "verdict"))
+    comment: Mapped[str | None] = mapped_column(Text)
+    evaluated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class AuditLog(Base):
     __tablename__ = "audit_log"
 
