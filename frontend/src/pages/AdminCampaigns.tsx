@@ -472,7 +472,7 @@ function DistributionCard({ campaignId, onDone }: { campaignId: string; onDone: 
           <p className="stats">
             <strong>{d.pending}</strong> aguardando distribuição · <strong>{d.distributed}</strong> distribuída(s) · comitê com <strong>{d.committee}</strong> membro(s) ativo(s)
           </p>
-          {d.blocker && d.pending > 0 && <p className="muted">{d.blocker}</p>}
+          {d.blocker && d.pending > 0 && <Notice kind="error">Distribuição bloqueada: {d.blocker}</Notice>}
           {d.pending > 0 && (
             <div className="actions">
               <button className="btn btn-primary" disabled={busy || d.blocker !== null} onClick={distribute}>
