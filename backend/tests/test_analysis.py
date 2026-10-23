@@ -58,6 +58,23 @@ def test_distribuicao(client_for, make_tenant, make_user, owner):
     assert owner.get(Campaign, cid).current_phase.value == "analise"
     assert owner.scalar(select(AuditLog).where(AuditLog.action == "distribuicao_executada")).details["ideias"] == 3
 
+    # Administrador acompanha tudo no menu Análise: um cartão por ideia e avaliador, filtrável por avaliador
+    overview = c.get("/api/analysis").json()
+    assert overview["overview"] is True and len(overview["evaluators"]) == 4
+    assert sum(len(col["cards"]) for col in overview["columns"]) == 9
+    assert all(card["evaluator_name"] for card in overview["columns"][0]["cards"])
+    first = overview["evaluators"][0]["id"]
+    filtered = c.get("/api/analysis", params={"evaluator_id": first}).json()
+    assert {card["evaluator_name"] for col in filtered["columns"] for card in col["cards"]} == \
+        {overview["evaluators"][0]["title"]}
+    # ...mas não dá parecer nem abre a tela do avaliador
+    aid = overview["columns"][0]["cards"][0]["assignment_id"]
+    assert c.put(f"/api/analysis/{aid}", json={"verdict": "classificar"}).status_code == 404
+    # O avaliador vê só os seus, sem nome de avaliador
+    own = members["comite1@hnsg.org"].get("/api/analysis").json()
+    assert own["overview"] is False and own["evaluators"] == []
+    assert all(card["evaluator_name"] is None for col in own["columns"] for card in col["cards"])
+
     # Kanban de Classificação: as ideias passam para "Em análise", com o progresso dos pareceres
     board = {col["key"]: col for col in c.get("/api/board").json()["columns"]}
     assert board["recebida"]["cards"] == [] and len(board["em_analise"]["cards"]) == 3

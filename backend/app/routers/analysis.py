@@ -138,12 +138,21 @@ def evaluator_ctx(user: User = Depends(require_roles(*ANALYSIS_ROLES)),
     return EvaluatorCtx(user, ctx)
 
 
+# Quem acompanha todas as avaliações no menu Análise, sem dar parecer.
+OVERVIEW_ROLES = {Role.administrador, Role.consultor}
+
+
 @router.get("/analysis", response_model=AnalysisBoardOut)
-def analysis_board(campaign_id: uuid.UUID | None = None, e: EvaluatorCtx = Depends(evaluator_ctx)) -> AnalysisBoardOut:
-    """Só aparecem ideias depois que o administrador executa a distribuição."""
+def analysis_board(campaign_id: uuid.UUID | None = None, evaluator_id: uuid.UUID | None = None,
+                   e: EvaluatorCtx = Depends(evaluator_ctx)) -> AnalysisBoardOut:
+    """Avaliador: só as ideias distribuídas a ele. Administrador e consultor: todas as atribuições da campanha
+    (um cartão por ideia e avaliador). Nada aparece antes da distribuição."""
+    overview = e.user.role in OVERVIEW_ROLES
+    mine = Assignment.evaluator_id == e.user.id
+    scope = select(Assignment.campaign_id).where(Assignment.tenant_id == e.tenant.id)
     campaigns = list(e.db.scalars(
-        select(Campaign).where(Campaign.id.in_(select(Assignment.campaign_id).where(
-            Assignment.evaluator_id == e.user.id))).order_by(Campaign.submission_start.desc())))
+        select(Campaign).where(Campaign.id.in_(scope if overview else scope.where(mine)))
+        .order_by(Campaign.submission_start.desc())))
     if campaign_id is None and campaigns:
         campaign_id = campaigns[0].id
     c = next((x for x in campaigns if x.id == campaign_id), None)
@@ -151,15 +160,26 @@ def analysis_board(campaign_id: uuid.UUID | None = None, e: EvaluatorCtx = Depen
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Campanha não encontrada.")
 
     cards: dict[Verdict | None, list[AnalysisCard]] = {v: [] for v, _, _ in COLUMNS}
+    evaluators: list[BoardCampaign] = []
     if c is not None:
-        rows = e.db.execute(
-            select(Assignment, Idea.number, Idea.title, CampaignLine.name)
-            .join(Idea, Idea.id == Assignment.idea_id).outerjoin(CampaignLine, CampaignLine.id == Idea.line_id)
-            .where(Assignment.evaluator_id == e.user.id, Assignment.campaign_id == c.id).order_by(Idea.number))
-        for asg, number, title, line in rows:
-            cards[asg.verdict].append(AnalysisCard(assignment_id=asg.id, number=number, title=title, line_name=line,
-                                                   evaluated_at=asg.evaluated_at))
+        query = (select(Assignment, Idea.number, Idea.title, CampaignLine.name, User.name)
+                 .join(Idea, Idea.id == Assignment.idea_id).join(User, User.id == Assignment.evaluator_id)
+                 .outerjoin(CampaignLine, CampaignLine.id == Idea.line_id)
+                 .where(Assignment.campaign_id == c.id).order_by(Idea.number, User.name))
+        if overview:
+            evaluators = [BoardCampaign(id=uid, title=name) for uid, name in e.db.execute(
+                select(User.id, User.name).where(User.id.in_(
+                    select(Assignment.evaluator_id).where(Assignment.campaign_id == c.id))).order_by(User.name))]
+            if evaluator_id is not None:
+                query = query.where(Assignment.evaluator_id == evaluator_id)
+        else:
+            query = query.where(mine)
+        for asg, number, title, line, evaluator in e.db.execute(query):
+            cards[asg.verdict].append(AnalysisCard(
+                assignment_id=asg.id, idea_id=asg.idea_id, evaluator_name=evaluator if overview else None,
+                number=number, title=title, line_name=line, evaluated_at=asg.evaluated_at))
     return AnalysisBoardOut(
+        overview=overview, evaluators=evaluators, evaluator_id=evaluator_id if overview else None,
         campaigns=[BoardCampaign(id=x.id, title=x.title) for x in campaigns], campaign_id=campaign_id,
         evaluation_state=evaluation_state(c) if c else None, analysis_start=c.analysis_start if c else None,
         analysis_end=c.analysis_end if c else None,

@@ -174,9 +174,10 @@ export interface Distribution {
 }
 export type EvaluationState = 'antes' | 'aberta' | 'encerrada'
 export interface AnalysisBoard {
+  overview: boolean; evaluators: { id: string; title: string }[]; evaluator_id: string | null
   campaigns: { id: string; title: string }[]; campaign_id: string | null; evaluation_state: EvaluationState | null
   analysis_start: string | null; analysis_end: string | null
-  columns: { key: string; label: string; cards: { assignment_id: string; number: number | null; title: string; line_name: string | null; evaluated_at: string | null }[] }[]
+  columns: { key: string; label: string; cards: { assignment_id: string; idea_id: string; evaluator_name: string | null; number: number | null; title: string; line_name: string | null; evaluated_at: string | null }[] }[]
 }
 export interface Assignment {
   id: string; campaign_title: string; number: number | null; title: string; line_name: string | null

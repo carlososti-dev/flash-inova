@@ -267,3 +267,4 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .table-narrow { min-width: 0; }
 .stats strong { color: var(--text); }
+.board-filters { display: flex; gap: .5rem; flex-wrap: wrap; }

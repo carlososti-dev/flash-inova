@@ -453,6 +453,8 @@ class DistributionOut(BaseModel):
 
 class AnalysisCard(BaseModel):
     assignment_id: uuid.UUID
+    idea_id: uuid.UUID
+    evaluator_name: str | None = None  # só na visão geral (administrador e consultor)
     number: int | None
     title: str
     line_name: str | None
@@ -466,6 +468,9 @@ class AnalysisColumn(BaseModel):
 
 
 class AnalysisBoardOut(BaseModel):
+    overview: bool  # administrador e consultor: todas as atribuições, só para acompanhar
+    evaluators: list[BoardCampaign]  # filtro da visão geral (id e nome)
+    evaluator_id: uuid.UUID | None
     campaigns: list[BoardCampaign]
     campaign_id: uuid.UUID | None
     evaluation_state: str | None
