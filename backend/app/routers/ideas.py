@@ -426,6 +426,7 @@ def board(campaign_id: uuid.UUID | None = None, user: User = Depends(require_rol
             cards[idea.stage.value].append(BoardCard(
                 id=idea.id, number=idea.number, title=idea.title, line_name=line, author_name=author,
                 author_sector=sector, coauthors=n_coauthors, submitted_at=idea.submitted_at,
-                reviews_done=reviews.get(idea.id, 0), reviews_total=totals.get(idea.id, 0)))
+                reviews_done=reviews.get(idea.id, 0), reviews_total=totals.get(idea.id, 0),
+                score=idea.classification_score))
     return BoardOut(campaigns=[BoardCampaign(id=c.id, title=c.title) for c in campaigns], campaign_id=campaign_id,
                     columns=[BoardColumn(key=key, label=label, cards=cards[key]) for key, label in BOARD_COLUMNS])

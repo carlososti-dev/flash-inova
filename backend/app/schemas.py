@@ -412,6 +412,7 @@ class BoardCard(BaseModel):
     submitted_at: datetime | None
     reviews_done: int = 0
     reviews_total: int = 0
+    score: int | None = None  # nota da Classificação
 
 
 class BoardColumn(BaseModel):
@@ -500,3 +501,100 @@ class AssignmentOut(BaseModel):
 class VerdictIn(BaseModel):
     verdict: Verdict | None = None
     comment: str | None = Field(default=None, max_length=5000)
+
+
+# ---------- Classificação ----------
+
+class ReviewOut(BaseModel):
+    verdict: Verdict | None
+    comment: str | None
+    evaluator_name: str | None  # só para quem administra
+
+
+class ClassifiedIdea(BaseModel):
+    id: uuid.UUID
+    number: int | None
+    title: str
+    line_name: str | None
+    author_name: str
+    author_sector: str | None
+    stage: IdeaStage
+    outcome: IdeaStage  # resultado gravado; antes da apuração, a prévia pelos pareceres atuais
+    classify: int
+    maybe: int
+    reject: int
+    reviews_total: int
+    score: int | None
+    weighted: int
+    rank: int | None  # posição no ranking das classificadas (Classificada e Talvez)
+    above_cutoff: bool
+    minerva_verdict: Verdict | None
+    minerva_comment: str | None
+    minerva_by: str | None
+    minerva_at: datetime | None
+    reviews: list[ReviewOut]
+
+
+class ClassificationOut(BaseModel):
+    campaigns: list[BoardCampaign]
+    campaign_id: uuid.UUID | None
+    evaluation_state: str | None
+    analysis_end: datetime | None
+    classified_at: datetime | None
+    blocker: str | None  # por que a apuração ainda não pode ser feita
+    pending_reviews: int  # pareceres em branco, que não contam na apuração
+    cutoff_score: int
+    num_defense_finalists: int | None
+    can_manage: bool  # apurar e mudar a linha de corte (administrador e consultor)
+    can_minerva: bool  # Voto de Minerva: só o administrador
+    ideas: list[ClassifiedIdea]
+
+
+class MinervaIn(BaseModel):
+    verdict: Verdict
+    comment: str = Field(max_length=5000)
+
+
+# ---------- Dashboard: acompanhamento dos avaliadores ----------
+
+class EvaluatorReport(BaseModel):
+    id: uuid.UUID
+    name: str
+    sector: str | None
+    assigned: int
+    evaluated: int
+    pending: int
+    last_evaluated_at: datetime | None
+    last_reminder_at: datetime | None
+
+
+class IdeaReviewStatus(BaseModel):
+    id: uuid.UUID
+    number: int | None
+    title: str
+    line_name: str | None
+    done: int
+    total: int
+    pending_evaluators: list[str]
+
+
+class EvaluatorsReportOut(BaseModel):
+    campaigns: list[BoardCampaign]
+    campaign_id: uuid.UUID | None
+    evaluation_state: str | None
+    analysis_end: datetime | None
+    can_remind: bool
+    reviews_done: int
+    reviews_total: int
+    evaluators: list[EvaluatorReport]
+    ideas: list[IdeaReviewStatus]
+
+
+class ReminderIn(BaseModel):
+    evaluator_ids: list[uuid.UUID] | None = None  # vazio = todos com parecer pendente
+    message: str | None = Field(default=None, max_length=2000)
+
+
+class ReminderOut(BaseModel):
+    sent: int
+    recipients: list[str]

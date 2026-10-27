@@ -163,6 +163,8 @@ class Campaign(Timestamps, Base):
     num_winners: Mapped[int] = mapped_column(Integer, default=3)
     current_phase: Mapped[CampaignPhase] = mapped_column(_enum(CampaignPhase, "campaign_phase"),
                                                          default=CampaignPhase.recepcao)
+    # Quando a apuração da Classificação foi gravada (vazio = ainda não apurada).
+    classified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
 
 
@@ -212,6 +214,12 @@ class CampaignField(Timestamps, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class Verdict(str, enum.Enum):
+    classificar = "classificar"
+    talvez = "talvez"
+    nao_classificar = "nao_classificar"
+
+
 class IdeaStage(str, enum.Enum):
     rascunho = "rascunho"
     recebida = "recebida"
@@ -240,6 +248,12 @@ class Idea(Timestamps, Base):
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     regulation_version_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("regulation_versions.id"))
     regulation_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Classificação: nota de ranking (0 a 100) e, nas ideias empatadas, o Voto de Minerva do administrador.
+    classification_score: Mapped[int | None] = mapped_column(Integer)
+    minerva_verdict: Mapped[Verdict | None] = mapped_column(_enum(Verdict, "verdict"))
+    minerva_comment: Mapped[str | None] = mapped_column(Text)
+    minerva_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    minerva_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class IdeaAnswer(Timestamps, Base):
@@ -261,12 +275,6 @@ class IdeaCoauthor(Timestamps, Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
     idea_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ideas.id", ondelete="CASCADE"))
     member_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("authorized_members.id"))
-
-
-class Verdict(str, enum.Enum):
-    classificar = "classificar"
-    talvez = "talvez"
-    nao_classificar = "nao_classificar"
 
 
 class Assignment(Timestamps, Base):
