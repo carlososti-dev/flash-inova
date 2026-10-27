@@ -158,7 +158,7 @@ export interface Idea extends IdeaSummary {
 export interface BoardCard {
   id: string; number: number | null; title: string; line_name: string | null; author_name: string
   author_sector: string | null; coauthors: number; submitted_at: string | null
-  reviews_done: number; reviews_total: number
+  reviews_done: number; reviews_total: number; score: number | null
 }
 export interface Board {
   campaigns: { id: string; title: string }[]; campaign_id: string | null
@@ -184,6 +184,33 @@ export interface Assignment {
   summary: string | null; answers: IdeaAnswer[]; author_name: string | null; coauthors: string[] | null
   verdict: Verdict | null; comment: string | null; evaluated_at: string | null; evaluation_state: EvaluationState
   analysis_end: string | null; can_evaluate: boolean
+}
+
+export const STAGE_LABELS: Record<IdeaStage, string> = {
+  rascunho: 'Rascunho', recebida: 'Recebida', em_analise: 'Em análise', empate: 'Empate', classificada: 'Classificada',
+  talvez: 'Talvez', nao_classificada: 'Não classificada', shortlist: 'Shortlist', selecionada: 'Selecionada', premiada: 'Premiada',
+}
+export interface ClassifiedIdea {
+  id: string; number: number | null; title: string; line_name: string | null; author_name: string; author_sector: string | null
+  stage: IdeaStage; outcome: IdeaStage; classify: number; maybe: number; reject: number; reviews_total: number
+  score: number | null; weighted: number; rank: number | null; above_cutoff: boolean
+  minerva_verdict: Verdict | null; minerva_comment: string | null; minerva_by: string | null; minerva_at: string | null
+  reviews: { verdict: Verdict | null; comment: string | null; evaluator_name: string | null }[]
+}
+export interface Classification {
+  campaigns: { id: string; title: string }[]; campaign_id: string | null; evaluation_state: EvaluationState | null
+  analysis_end: string | null; classified_at: string | null; blocker: string | null; pending_reviews: number
+  cutoff_score: number; num_defense_finalists: number | null; can_manage: boolean; can_minerva: boolean
+  ideas: ClassifiedIdea[]
+}
+export interface EvaluatorsReport {
+  campaigns: { id: string; title: string }[]; campaign_id: string | null; evaluation_state: EvaluationState | null
+  analysis_end: string | null; can_remind: boolean; reviews_done: number; reviews_total: number
+  evaluators: {
+    id: string; name: string; sector: string | null; assigned: number; evaluated: number; pending: number
+    last_evaluated_at: string | null; last_reminder_at: string | null
+  }[]
+  ideas: { id: string; number: number | null; title: string; line_name: string | null; done: number; total: number; pending_evaluators: string[] }[]
 }
 
 export const fmtSize = (bytes: number | null) =>

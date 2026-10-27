@@ -52,6 +52,7 @@ const MENU: { to: string; label: string; roles: Role[] | 'all' }[] = [
   { to: '/minhas-ideias', label: 'Minhas ideias', roles: 'all' },
   { to: '/analise', label: 'Análise', roles: ['administrador', 'consultor', 'membro_comite'] },
   { to: '/classificacao', label: 'Classificação', roles: ['administrador', 'consultor', 'gestor'] },
+  { to: '/dashboard', label: 'Dashboard', roles: ['administrador', 'consultor'] },
   { to: '/administracao', label: 'Administração', roles: ['administrador', 'consultor'] },
 ]
 

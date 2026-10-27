@@ -24,6 +24,8 @@ class Settings(BaseSettings):
 
     email_backend: str = "console"  # console | memory
     email_from: str = "nao-responda@flashinova.local"
+    # Fuso das datas escritas nos e-mails (prazos).
+    timezone: str = "America/Sao_Paulo"
 
     storage_dir: str = "storage"
     # Anexos das ideias: fora da pasta pública /files; só saem pela API, com conferência de permissão.

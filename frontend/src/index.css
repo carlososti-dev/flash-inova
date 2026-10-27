@@ -268,3 +268,23 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .table-narrow { min-width: 0; }
 .stats strong { color: var(--text); }
 .board-filters { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+/* Classificação: apuração, Voto de Minerva e ranking */
+.tag-muted { background: var(--bg); color: var(--muted); }
+.cutoff-row { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; margin-top: 1rem; }
+.cutoff-row label { display: grid; gap: .25rem; font-size: .9rem; }
+.cutoff-row input { font: inherit; width: 7rem; padding: .5rem .6rem; border: 1px solid var(--border); border-radius: 8px; }
+.ranking .row-above td { background: var(--ok-soft); }
+.ranking .cutoff-line td { border-bottom: 2px dashed var(--danger); color: var(--danger); font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: .35rem .5rem; }
+.minerva { border: 1px solid var(--border); border-radius: 8px; padding: .75rem 1rem; display: grid; gap: .5rem; }
+.minerva .reviews { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.minerva .reviews p { margin: .2rem 0 0; font-size: .9rem; }
+
+/* Dashboard */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .9rem 1rem; display: grid; gap: .15rem; }
+.kpi strong { font-size: 1.4rem; }
+.kpi span { color: var(--muted); font-size: .85rem; }
+.reminder { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+.reminder h3 { margin: 0; font-size: 1rem; }
+.ranking td small { white-space: nowrap; }
