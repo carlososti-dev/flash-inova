@@ -8,6 +8,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import Analysis from './pages/Analysis'
 import AssignmentPage from './pages/Assignment'
 import Board from './pages/Board'
+import Dashboard from './pages/Dashboard'
 import Home, { Regulation } from './pages/Home'
 import IdeaEditor from './pages/IdeaEditor'
 import IdeaView from './pages/IdeaView'
@@ -59,6 +60,7 @@ function App() {
           <Route path="/analise" element={<Guard roles={['administrador', 'consultor', 'membro_comite']}><Analysis /></Guard>} />
           <Route path="/analise/:id" element={<Guard roles={['administrador', 'consultor', 'membro_comite']}><AssignmentPage /></Guard>} />
           <Route path="/classificacao" element={<Guard roles={['administrador', 'consultor', 'gestor']}><Board /></Guard>} />
+          <Route path="/dashboard" element={<Guard roles={['administrador', 'consultor']}><Dashboard /></Guard>} />
           <Route path="/administracao" element={<Guard roles={['administrador', 'consultor']}><Admin /></Guard>} />
         </>
       ) : (
