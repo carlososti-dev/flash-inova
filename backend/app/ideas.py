@@ -5,7 +5,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .campaigns import submission_state
-from .models import Campaign, CampaignField, FieldKind, Idea, IdeaStage, RegulationVersion, utcnow
+from .models import (
+    Campaign, CampaignField, DefenseReason, FieldKind, Idea, IdeaStage, RegulationVersion, utcnow,
+)
 
 STAGE_LABELS = {
     IdeaStage.rascunho: "Rascunho",
@@ -15,10 +17,18 @@ STAGE_LABELS = {
     IdeaStage.classificada: "Classificada",
     IdeaStage.talvez: "Talvez",
     IdeaStage.nao_classificada: "Não classificada",
+    IdeaStage.em_defesa: "Em defesa",
     IdeaStage.shortlist: "Shortlist",
-    IdeaStage.selecionada: "Selecionada",
+    IdeaStage.desclassificada: "Desclassificada",
     IdeaStage.premiada: "Premiada",
 }
+DEFENSE_REASON_LABELS = {
+    DefenseReason.viabilidade_tecnica: "Viabilidade técnica",
+    DefenseReason.viabilidade_financeira: "Viabilidade financeira",
+    DefenseReason.projeto_em_andamento: "Existe um projeto igual em andamento",
+    DefenseReason.outro: "Outro",
+}
+
 # O autor não vê o empate (é uma decisão interna, o Voto de Minerva): para ele a ideia segue em classificação.
 AUTHOR_STAGE_LABELS = STAGE_LABELS | {IdeaStage.empate: "Em classificação"}
 
@@ -26,7 +36,8 @@ AUTHOR_STAGE_LABELS = STAGE_LABELS | {IdeaStage.empate: "Em classificação"}
 BOARD_COLUMNS = [
     ("recebida", "Recebidas"), ("em_analise", "Em análise"), ("empate", "Empate"),
     ("classificada", "Classificadas"), ("talvez", "Talvez"), ("nao_classificada", "Não classificadas"),
-    ("shortlist", "Shortlist"), ("selecionada", "Selecionadas"), ("premiada", "Premiadas"),
+    ("em_defesa", "Em defesa"), ("shortlist", "Shortlist"), ("desclassificada", "Desclassificadas"),
+    ("premiada", "Premiadas"),
 ]
 
 EDITABLE_STAGES = {IdeaStage.rascunho, IdeaStage.recebida}

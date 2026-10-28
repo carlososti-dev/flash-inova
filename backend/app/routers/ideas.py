@@ -14,11 +14,11 @@ from ..campaigns import featured_campaign, lines_of, submission_state
 from ..config import get_settings
 from ..deps import RequestContext, get_context, get_current_user, require_active_tenant, require_roles
 from ..ideas import (
-    AUTHOR_STAGE_LABELS, BOARD_COLUMNS, STAGE_LABELS, answered, can_edit, can_submit, clean_answer,
+    AUTHOR_STAGE_LABELS, BOARD_COLUMNS, DEFENSE_REASON_LABELS, STAGE_LABELS, answered, can_edit, can_submit, clean_answer,
     current_regulation, next_number,
 )
 from ..models import (
-    Assignment, AuthorizedMember, Campaign, CampaignField, CampaignLine, FieldKind, Idea, IdeaAnswer, IdeaCoauthor,
+    Assignment, AuthorizedMember, Campaign, CampaignField, CampaignLine, DefenseReason, FieldKind, Idea, IdeaAnswer, IdeaCoauthor,
     IdeaStage, RegulationVersion, Role, Tenant, User, utcnow,
 )
 from ..schemas import (
@@ -141,6 +141,10 @@ def _idea_out(db, idea: Idea, c: Campaign, role: str) -> IdeaOut:
         coauthors=[_person(p) for p in _coauthors(db, idea.id)],
         regulation_version=regulation.version if regulation else None,
         regulation_accepted_at=idea.regulation_accepted_at,
+        # Desclassificada na Defesa: autor e coautores veem os motivos; o comentário da banca, só quem acompanha.
+        defense_reasons=[DEFENSE_REASON_LABELS[DefenseReason(r)] for r in idea.defense_reasons or []]
+        if idea.stage == IdeaStage.desclassificada else [],
+        defense_comment=idea.defense_comment if role == "acompanha" else None,
     )
 
 

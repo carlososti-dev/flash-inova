@@ -101,7 +101,7 @@ const DATE_FIELDS = [
 const TEXT_FIELDS = ['title', 'home_headline', 'home_text', 'tips_text', 'regulation_text', 'video_url'] as const
 const NUMBER_FIELDS = [
   ['num_evaluators', 'Avaliadores por ideia'], ['weight_classify', 'Peso do "Classificar"'], ['weight_maybe', 'Peso do "Talvez"'],
-  ['cutoff_score', 'Linha de corte (0 a 100)'], ['num_defense_finalists', 'Finalistas da defesa (N)'],
+  ['cutoff_score', 'Linha de corte (0 a 100)'], ['num_defense_finalists', 'Máximo de ideias na Defesa (N, opcional)'],
   ['num_voting_finalists', 'Finalistas da votação (X)'], ['num_winners', 'Premiadas'],
 ] as const
 const OPTIONAL_NUMBERS = new Set(['num_defense_finalists', 'num_voting_finalists'])
@@ -120,17 +120,18 @@ function CampaignEditor({ id, onClose }: { id: string; onClose: () => void }) {
   const [c, setC] = useState<CampaignAdmin | null>(null)
   const [draft, setDraft] = useState<Draft>({})
   const [blind, setBlind] = useState(true)
+  const [useCutoff, setUseCutoff] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
 
-  const apply = useCallback((data: CampaignAdmin) => { setC(data); setDraft(toDraft(data)); setBlind(data.blind_review) }, [])
+  const apply = useCallback((data: CampaignAdmin) => { setC(data); setDraft(toDraft(data)); setBlind(data.blind_review); setUseCutoff(data.defense_use_cutoff) }, [])
   useEffect(() => {
     api<CampaignAdmin>(`/api/admin/campaigns/${id}`).then(apply).catch((e) => setError(errText(e)))
   }, [id, apply])
 
   const { busy, error: saveError, onSubmit } = useSubmit(async () => {
     setOk(null)
-    const body: Record<string, unknown> = { blind_review: blind }
+    const body: Record<string, unknown> = { blind_review: blind, defense_use_cutoff: useCutoff }
     for (const [k] of DATE_FIELDS) body[k] = fromInput(draft[k])
     for (const k of TEXT_FIELDS) body[k] = draft[k]
     for (const [k] of NUMBER_FIELDS) body[k] = draft[k] === '' && OPTIONAL_NUMBERS.has(k) ? null : Number(draft[k])
@@ -208,6 +209,7 @@ function CampaignEditor({ id, onClose }: { id: string; onClose: () => void }) {
                 max={k === 'cutoff_score' ? 100 : undefined} required={!OPTIONAL_NUMBERS.has(k)} value={draft[k]} onChange={set(k)} /></label>
             ))}
             <label className="check"><input type="checkbox" checked={blind} onChange={(e) => setBlind(e.target.checked)} /> Duplo-cego (o comitê não vê o autor)</label>
+            <label className="check"><input type="checkbox" checked={useCutoff} onChange={(e) => setUseCutoff(e.target.checked)} /> Na Defesa entram só as classificadas com nota igual ou maior que a linha de corte (desmarcado: todas as classificadas)</label>
           </div>
         </section>
 

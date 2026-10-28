@@ -113,7 +113,7 @@ export interface CampaignAdmin extends CampaignSummary {
   home_headline: string | null; home_text: string | null; tips_text: string | null; regulation_text: string | null
   banner_url: string | null; video_url: string | null
   num_evaluators: number; weight_classify: number; weight_maybe: number; cutoff_score: number; blind_review: boolean
-  num_defense_finalists: number | null; num_voting_finalists: number | null; num_winners: number
+  num_defense_finalists: number | null; defense_use_cutoff: boolean; num_voting_finalists: number | null; num_winners: number
   lines: CampaignLine[]; fields: CampaignField[]; regulation_version: number | null; ideas_submitted: number
 }
 export interface PhaseInfo { key: string; label: string; start: string | null; end: string | null }
@@ -135,7 +135,7 @@ export interface CampaignField {
 }
 
 export type IdeaStage = 'rascunho' | 'recebida' | 'em_analise' | 'empate' | 'classificada' | 'talvez'
-  | 'nao_classificada' | 'shortlist' | 'selecionada' | 'premiada'
+  | 'nao_classificada' | 'em_defesa' | 'shortlist' | 'desclassificada' | 'premiada'
 export type AnswerValue = string | boolean | null
 export interface Person { id: string; name: string; sector: string | null }
 export interface IdeaForm {
@@ -154,6 +154,7 @@ export interface IdeaAnswer {
 export interface Idea extends IdeaSummary {
   line_id: string | null; summary: string | null; author_name: string; answers: IdeaAnswer[]; coauthors: Person[]
   regulation_version: number | null; regulation_accepted_at: string | null
+  defense_reasons: string[]; defense_comment: string | null
 }
 export interface BoardCard {
   id: string; number: number | null; title: string; line_name: string | null; author_name: string
@@ -188,7 +189,8 @@ export interface Assignment {
 
 export const STAGE_LABELS: Record<IdeaStage, string> = {
   rascunho: 'Rascunho', recebida: 'Recebida', em_analise: 'Em análise', empate: 'Empate', classificada: 'Classificada',
-  talvez: 'Talvez', nao_classificada: 'Não classificada', shortlist: 'Shortlist', selecionada: 'Selecionada', premiada: 'Premiada',
+  talvez: 'Talvez', nao_classificada: 'Não classificada', em_defesa: 'Em defesa', shortlist: 'Shortlist',
+  desclassificada: 'Desclassificada', premiada: 'Premiada',
 }
 export interface ClassifiedIdea {
   id: string; number: number | null; title: string; line_name: string | null; author_name: string; author_sector: string | null
@@ -202,6 +204,25 @@ export interface Classification {
   analysis_end: string | null; classified_at: string | null; blocker: string | null; pending_reviews: number
   cutoff_score: number; num_defense_finalists: number | null; can_manage: boolean; can_minerva: boolean
   ideas: ClassifiedIdea[]
+}
+export type DefenseReason = 'viabilidade_tecnica' | 'viabilidade_financeira' | 'projeto_em_andamento' | 'outro'
+export const DEFENSE_REASON_LABELS: Record<DefenseReason, string> = {
+  viabilidade_tecnica: 'Viabilidade técnica', viabilidade_financeira: 'Viabilidade financeira',
+  projeto_em_andamento: 'Existe um projeto igual em andamento', outro: 'Outro',
+}
+export interface DefenseCandidate {
+  id: string; number: number | null; title: string; line_name: string | null; author_name: string
+  stage: IdeaStage; score: number | null; rank: number | null; suggested: boolean
+}
+export interface DefenseIdea {
+  id: string; number: number | null; title: string; line_name: string | null; author_name: string; author_sector: string | null
+  stage: IdeaStage; score: number | null; rank: number | null; reasons: DefenseReason[]; comment: string | null
+  decided_by: string | null; decided_at: string | null
+}
+export interface Defense {
+  campaigns: { id: string; title: string }[]; campaign_id: string | null; current_phase: CampaignPhase | null
+  cutoff_score: number; defense_use_cutoff: boolean; num_defense_finalists: number | null; can_manage: boolean
+  start_blocker: string | null; close_blocker: string | null; candidates: DefenseCandidate[]; ideas: DefenseIdea[]
 }
 export interface EvaluatorsReport {
   campaigns: { id: string; title: string }[]; campaign_id: string | null; evaluation_state: EvaluationState | null
