@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, fmtDateTime, VERDICT_LABELS, type Assignment, type Verdict } from '../api'
 import { Layout, Notice } from '../components'
 import { Answer } from './IdeaView'
@@ -13,6 +13,7 @@ const VERDICTS: { value: Verdict; help: string }[] = [
 /** Leitura da ideia e parecer do avaliador. No duplo-cego, autor e coautores não aparecem. */
 export default function AssignmentPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [a, setA] = useState<Assignment | null>(null)
   const [verdict, setVerdict] = useState<Verdict | null>(null)
   const [comment, setComment] = useState('')
@@ -28,8 +29,14 @@ export default function AssignmentPage() {
   async function save(value: Verdict | null) {
     setBusy(true); setError(null); setOk(null)
     try {
-      apply(await api<Assignment>(`/api/analysis/${id}`, { method: 'PUT', json: { verdict: value, comment } }))
-      setOk(value ? `Parecer registrado: ${VERDICT_LABELS[value]}.` : 'Parecer desfeito: a ideia voltou para "Para análise".')
+      const saved = await api<Assignment>(`/api/analysis/${id}`, { method: 'PUT', json: { verdict: value, comment } })
+      if (value) {
+        // Volta ao kanban, onde o cartão já aparece na coluna do parecer.
+        navigate('/analise', { state: { ok: `Parecer registrado em "${saved.title}": ${VERDICT_LABELS[value]}.` } })
+        return
+      }
+      apply(saved)
+      setOk('Parecer desfeito: a ideia voltou para "Para análise".')
     } catch (e) { setError(e instanceof Error ? e.message : 'Não foi possível salvar.') }
     finally { setBusy(false) }
   }
