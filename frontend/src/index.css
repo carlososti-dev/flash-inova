@@ -62,7 +62,7 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .brand-logo { max-height: 56px; max-width: 220px; object-fit: contain; }
 .brand-name { font-weight: 800; font-size: 1.15rem; color: var(--primary-strong); }
 
-.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding: .75rem 1.5rem; background: var(--surface); border-bottom: 1px solid var(--border); }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding: .75rem 1.5rem; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; }
 .topbar-brand { display: flex; align-items: center; text-decoration: none; }
 .topbar-brand .brand-logo { max-height: 40px; }
 .topbar-nav { display: flex; gap: .25rem; flex: 1; justify-content: center; flex-wrap: wrap; }
@@ -97,7 +97,8 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 
 @media (max-width: 640px) {
   .topbar { padding: .75rem 1rem; }
-  .topbar-nav { order: 3; width: 100%; justify-content: flex-start; }
+  .topbar-nav { order: 3; width: 100%; justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; }
+  .topbar-nav a { white-space: nowrap; }
 }
 
 /* Administração */

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { api, fmtDateTime, type AnalysisBoard } from '../api'
 import { Layout, Notice } from '../components'
 
@@ -10,6 +10,7 @@ export default function Analysis() {
   const evaluator = params.get('avaliador')
   const [board, setBoard] = useState<AnalysisBoard | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const saved = (useLocation().state as { ok?: string } | null)?.ok
   const load = useCallback(async () => {
     const query = new URLSearchParams()
     if (campaign) query.set('campaign_id', campaign)
@@ -48,6 +49,7 @@ export default function Analysis() {
         </div>
       </div>
       {error && <Notice kind="error">{error}</Notice>}
+      {saved && <Notice kind="ok">{saved}</Notice>}
       {board && !board.campaign_id && (
         <section className="card"><p className="muted">{board.overview
           ? 'Nenhuma ideia foi distribuída ainda. Faça a distribuição em Administração › Campanhas › Configurar.'
