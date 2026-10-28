@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field, field_validator
 
-from .models import CampaignPhase, FieldKind, IdeaStage, Role, Theme, UserStatus, Verdict
+from .models import CampaignPhase, DefenseReason, FieldKind, IdeaStage, Role, Theme, UserStatus, Verdict
 
 
 class TenantPublic(BaseModel):
@@ -222,6 +222,7 @@ class CampaignUpdate(BaseModel):
     cutoff_score: int | None = Field(default=None, ge=0, le=100)
     blind_review: bool | None = None
     num_defense_finalists: int | None = Field(default=None, ge=1, le=500)
+    defense_use_cutoff: bool | None = None
     num_voting_finalists: int | None = Field(default=None, ge=1, le=500)
     num_winners: int | None = Field(default=None, ge=1, le=20)
 
@@ -297,6 +298,7 @@ class CampaignAdminOut(CampaignSummary):
     cutoff_score: int
     blind_review: bool
     num_defense_finalists: int | None
+    defense_use_cutoff: bool
     num_voting_finalists: int | None
     num_winners: int
     lines: list[CampaignLineOut]
@@ -399,6 +401,8 @@ class IdeaOut(IdeaSummary):
     coauthors: list[PersonOut]
     regulation_version: int | None
     regulation_accepted_at: datetime | None
+    defense_reasons: list[str] = []
+    defense_comment: str | None = None
 
 
 class BoardCard(BaseModel):
@@ -553,6 +557,61 @@ class ClassificationOut(BaseModel):
 class MinervaIn(BaseModel):
     verdict: Verdict
     comment: str = Field(max_length=5000)
+
+
+# ---------- Defesa ----------
+
+class DefenseCandidate(BaseModel):
+    """Ideia do ranking que pode entrar na Defesa (Classificada ou Talvez)."""
+    id: uuid.UUID
+    number: int | None
+    title: str
+    line_name: str | None
+    author_name: str
+    stage: IdeaStage
+    score: int | None
+    rank: int | None
+    suggested: bool  # entra pela regra da campanha (Classificadas, linha de corte e N)
+
+
+class DefenseIdea(BaseModel):
+    id: uuid.UUID
+    number: int | None
+    title: str
+    line_name: str | None
+    author_name: str
+    author_sector: str | None
+    stage: IdeaStage  # em_defesa | shortlist (viável) | desclassificada
+    score: int | None
+    rank: int | None
+    reasons: list[DefenseReason]
+    comment: str | None
+    decided_by: str | None
+    decided_at: datetime | None
+
+
+class DefenseOut(BaseModel):
+    campaigns: list[BoardCampaign]
+    campaign_id: uuid.UUID | None
+    current_phase: CampaignPhase | None
+    cutoff_score: int
+    defense_use_cutoff: bool
+    num_defense_finalists: int | None
+    can_manage: bool  # fechar fases e lançar o parecer da banca: só o administrador
+    start_blocker: str | None  # por que a Classificação ainda não pode ser fechada
+    close_blocker: str | None  # por que a Defesa ainda não pode ser fechada
+    candidates: list[DefenseCandidate]  # só enquanto a campanha está na Classificação
+    ideas: list[DefenseIdea]
+
+
+class DefenseStartIn(BaseModel):
+    idea_ids: list[uuid.UUID] = Field(min_length=1, max_length=500)
+
+
+class DefenseVerdictIn(BaseModel):
+    viable: bool
+    reasons: list[DefenseReason] = Field(default_factory=list, max_length=4)
+    comment: str | None = Field(default=None, max_length=5000)
 
 
 # ---------- Dashboard: acompanhamento dos avaliadores ----------

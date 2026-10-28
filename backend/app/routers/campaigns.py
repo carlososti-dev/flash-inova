@@ -130,7 +130,8 @@ def update_campaign(campaign_id: uuid.UUID, body: CampaignUpdate, a: AdminCtx = 
     c = _get_campaign(a, campaign_id)
     changes = body.model_dump(exclude_unset=True)
     for required in ("title", "submission_start", "submission_end", "num_evaluators", "weight_classify",
-                     "weight_maybe", "cutoff_score", "num_winners", "is_published", "blind_review"):
+                     "weight_maybe", "cutoff_score", "num_winners", "is_published", "blind_review",
+                     "defense_use_cutoff"):
         if required in changes and changes[required] is None:
             raise _unprocessable("Preencha o título, o período de inscrição e as regras da avaliação.")
     if changes.get("video_url") and youtube_id(changes["video_url"]) is None:

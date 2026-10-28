@@ -252,7 +252,7 @@ def test_kanban(client_for, make_tenant, make_user):
         board = client.get("/api/board").json()
         assert board["campaign_id"] == cid
         columns = {col["key"]: col for col in board["columns"]}
-        assert list(columns)[:3] == ["recebida", "em_analise", "empate"] and len(columns) == 9
+        assert list(columns)[:3] == ["recebida", "em_analise", "empate"] and len(columns) == 10
         assert [(x["number"], x["title"], x["line_name"], x["author_name"]) for x in columns["recebida"]["cards"]] == \
             [(1, "Ideia enviada", "Segurança do paciente", "Ana")]
         assert sum(len(col["cards"]) for col in board["columns"]) == 1

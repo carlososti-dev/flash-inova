@@ -28,7 +28,8 @@ router = APIRouter(prefix="/api", tags=["classificação"])
 
 MANAGERS = {Role.administrador, Role.consultor}
 # Etapas que entram no ranking (as que passaram da Classificação também, com a nota que tiveram).
-RANKED = {IdeaStage.classificada, IdeaStage.talvez, IdeaStage.shortlist, IdeaStage.selecionada, IdeaStage.premiada}
+RANKED = {IdeaStage.classificada, IdeaStage.talvez, IdeaStage.em_defesa, IdeaStage.shortlist, IdeaStage.desclassificada,
+          IdeaStage.premiada}
 RESULT_STAGES = {IdeaStage.classificada, IdeaStage.talvez, IdeaStage.nao_classificada}
 
 

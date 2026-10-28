@@ -24,6 +24,13 @@ export default function IdeaView() {
           <p className="muted">{idea.campaign_title}{idea.line_name && ` · ${idea.line_name}`}</p>
           {idea.can_edit && <Link className="btn btn-primary btn-sm" to={`/ideias/${idea.id}/editar`}>Editar</Link>}
         </div>
+        {idea.stage === 'desclassificada' && idea.defense_reasons.length > 0 && (
+          <section className="card">
+            <h2>Desclassificada na Defesa</h2>
+            <ul>{idea.defense_reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+            {idea.defense_comment && <p className="prose"><strong>Comentário da banca:</strong> {idea.defense_comment}</p>}
+          </section>
+        )}
         <section className="card">
           <dl className="answers">
             <dt>Autor</dt><dd>{idea.author_name}</dd>

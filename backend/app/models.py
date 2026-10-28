@@ -159,6 +159,8 @@ class Campaign(Timestamps, Base):
     cutoff_score: Mapped[int] = mapped_column(Integer)
     blind_review: Mapped[bool] = mapped_column(Boolean, default=True)
     num_defense_finalists: Mapped[int | None] = mapped_column(Integer)
+    # Quem entra na Defesa: todas as Classificadas (False) ou só as com nota ≥ linha de corte (True).
+    defense_use_cutoff: Mapped[bool] = mapped_column(Boolean, default=False)
     num_voting_finalists: Mapped[int | None] = mapped_column(Integer)
     num_winners: Mapped[int] = mapped_column(Integer, default=3)
     current_phase: Mapped[CampaignPhase] = mapped_column(_enum(CampaignPhase, "campaign_phase"),
@@ -228,9 +230,17 @@ class IdeaStage(str, enum.Enum):
     classificada = "classificada"
     talvez = "talvez"
     nao_classificada = "nao_classificada"
-    shortlist = "shortlist"
-    selecionada = "selecionada"
+    em_defesa = "em_defesa"
+    shortlist = "shortlist"  # viável na Defesa: vai para a Votação
+    desclassificada = "desclassificada"  # desclassificada na Defesa
     premiada = "premiada"
+
+
+class DefenseReason(str, enum.Enum):
+    viabilidade_tecnica = "viabilidade_tecnica"
+    viabilidade_financeira = "viabilidade_financeira"
+    projeto_em_andamento = "projeto_em_andamento"
+    outro = "outro"
 
 
 class Idea(Timestamps, Base):
@@ -254,6 +264,11 @@ class Idea(Timestamps, Base):
     minerva_comment: Mapped[str | None] = mapped_column(Text)
     minerva_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     minerva_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Defesa: parecer da banca, lançado pelo administrador. Motivos só quando desclassificada.
+    defense_reasons: Mapped[list | None] = mapped_column(JSONB)
+    defense_comment: Mapped[str | None] = mapped_column(Text)
+    defense_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    defense_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class IdeaAnswer(Timestamps, Base):

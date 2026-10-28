@@ -6,6 +6,7 @@ Fatia 3: campanhas (datas das fases, linhas de ideias, textos, banner, vídeo, r
 Fatia 4: envio de ideias (formulário configurável, rascunho e envio, coautores, aceite do regulamento), Minhas ideias e o kanban da Classificação.
 Fatia 5: distribuição das ideias para o comitê e o menu Análise (parecer de cada avaliador).
 Fatia 6: Classificação (apuração da POC, ranking com linha de corte e Voto de Minerva) e Dashboard dos avaliadores, com alerta por e-mail.
+Fatia 7: Defesa (fechar a Classificação, parecer de viabilidade da banca e fechar a Defesa com a Shortlist para a Votação).
 
 - **Backend**: Python, FastAPI, SQLAlchemy, PostgreSQL (`backend/`)
 - **Frontend**: React + Vite + TypeScript (`frontend/`)
@@ -33,13 +34,17 @@ Fatia 6: Classificação (apuração da POC, ranking com linha de corte e Voto d
 - **Coautores** da lista de autorizados (busca por nome ou matrícula, até 10); veem a ideia depois de enviada, sem editar.
 - **Aceite do regulamento**: obrigatório para enviar; cada texto salvo do regulamento vira uma versão, e a ideia guarda a versão aceita e a data.
 - **Minhas ideias**: as ideias da pessoa (autora ou coautora) e a etapa de cada uma.
-- **Classificação (kanban)** para administrador, consultor e gestor: colunas Recebidas → Em análise → Empate → Classificadas / Talvez / Não classificadas → Shortlist → Selecionadas → Premiadas. Os cartões não são arrastados; mudam pelas ações do processo (nesta fatia, só "Recebidas" recebe cartões).
+- **Classificação (kanban)** para administrador, consultor e gestor: colunas Recebidas → Em análise → Empate → Classificadas / Talvez / Não classificadas → Em defesa → Shortlist / Desclassificadas → Premiadas. Os cartões não são arrastados; mudam pelas ações do processo (nesta fatia, só "Recebidas" recebe cartões).
 - **Distribuição para o comitê** (Administração > Campanhas > Configurar): depois do fim das inscrições, o administrador distribui as ideias recebidas. Cada uma vai para N membros do comitê (regra "avaliadores por ideia"), escolhidos pela menor carga; empate vai para quem recebeu há mais tempo. Ninguém avalia ideia de que é autor ou coautor. As ideias passam para "Em análise" e a campanha para a fase Análise.
 - **Menu Análise** (membro de comitê): kanban pessoal com Para análise, Classificadas, Não classificadas e Talvez. Só mostra ideias depois da distribuição. No duplo-cego o avaliador não vê autor nem coautores. "Talvez" exige comentário. Dentro do período da análise (datas da campanha) o avaliador pode reavaliar ou desfazer o parecer quantas vezes quiser; fora dele, só lê. Todo parecer fica na auditoria. Administrador e consultor veem no mesmo menu todas as avaliações da campanha (um cartão por ideia e avaliador, com filtro por avaliador), só para acompanhar.
 
 - **Dashboard** (administrador e consultor): pareceres dados e pendentes, prazo da análise e, por avaliador, quantas ideias faltam, último parecer e último alerta; por ideia, quem ainda não deu parecer. Enquanto a análise está aberta, o administrador envia um **alerta por e-mail** a todos com pendência ou só aos selecionados, com mensagem opcional. Cada alerta fica na auditoria.
 - **Classificação › Apuração e ranking**: durante a análise mostra a prévia com os pareceres dados até agora. Depois do fim da análise, o administrador **apura** uma única vez, com a regra da prova de conceito: a favor (Classificar + Talvez) contra Não classificar; mais a favor vira Classificada (ou Talvez, se Talvez ≥ Classificar), mais contra vira Não classificada, empate vai para o Voto de Minerva. Pareceres em branco não contam. A nota de 0 a 100 ordena o ranking (desempate pelos pontos com os pesos da campanha). A campanha passa para a fase Classificação.
 - **Voto de Minerva**: só o administrador, com justificativa obrigatória. O voto entra como um parecer a mais, desfaz o empate e define a nota. Pode ser revisto enquanto a campanha estiver na Classificação; tudo fica na auditoria. O autor não vê o empate (para ele, "Em classificação").
+- **Defesa** (Classificação › aba Defesa): os autores das classificadas defendem o projeto para a banca, fora do app.
+  - **Fechar Classificação** (só o administrador, sem empates pendentes): a lista vem marcada pela regra da campanha, todas as Classificadas ou só as com nota ≥ linha de corte (opção em Regras), limitadas a N se N estiver preenchido. Dá para desmarcar ou incluir ideias (Classificadas ou Talvez). As escolhidas vão para "Em defesa" e a campanha para a fase Defesa; o Voto de Minerva fica travado.
+  - **Parecer da banca**, lançado pelo administrador: Viável (vai para a Shortlist) ou Desclassificada, com ao menos um motivo (viabilidade técnica, viabilidade financeira, projeto igual em andamento, outro) e comentário obrigatório. Pode ser corrigido até o fechamento. O autor vê os motivos em Minhas ideias, sem o comentário.
+  - **Fechar Defesa**: todas com parecer e ao menos uma viável. A Shortlist segue para a Votação. Tudo fica na auditoria.
 - **Linha de corte** editável na própria tela, ranking com a linha marcada e exportação em CSV. O gestor acompanha o ranking sem apurar nem votar. Os cartões do kanban mostram a nota.
 
 ## Rodar localmente

@@ -91,7 +91,7 @@ export default function Ranking({ campaignId, onChange }: { campaignId: string |
           {data.can_manage && <button className="btn btn-ghost btn-sm" disabled={busy || !cutoffChanged || cutoff === ''} onClick={saveCutoff}>Salvar linha de corte</button>}
           <button className="btn btn-ghost btn-sm" onClick={() => download(`/api/classification.csv?campaign_id=${data.campaign_id}`, 'classificacao.csv').catch((e) => setError(errText(e)))}>Exportar CSV</button>
         </div>
-        {data.num_defense_finalists && <small className="muted">Shortlist da Defesa: as {data.num_defense_finalists} primeiras do ranking (próxima fase).</small>}
+        <small className="muted">Quem entra na Defesa é confirmado na aba Defesa, ao fechar a Classificação.</small>
       </section>
 
       {ties.length > 0 && (
