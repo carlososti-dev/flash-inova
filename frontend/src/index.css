@@ -289,3 +289,8 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .reminder { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem; }
 .reminder h3 { margin: 0; font-size: 1rem; }
 .ranking td small { white-space: nowrap; }
+.steps { list-style: none; counter-reset: step; margin: .75rem 0; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.steps li { counter-increment: step; display: grid; gap: .15rem; padding: .6rem .8rem; border: 1px solid var(--border); border-radius: 8px; }
+.steps li strong::before { content: counter(step) ". "; }
+.steps .step-on { border-color: var(--primary); background: var(--primary-soft); }
+.steps .step-done strong::after { content: " ✓"; color: var(--ok); }

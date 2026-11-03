@@ -9,6 +9,11 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : 'Não foi poss
 const RESULT_TAG: Partial<Record<string, string>> = { em_defesa: 'tag tag-wait', shortlist: 'tag tag-ok', desclassificada: 'tag tag-muted' }
 const RESULT_LABEL: Partial<Record<string, string>> = { em_defesa: 'Aguardando parecer', shortlist: 'Viável (Shortlist)', desclassificada: 'Desclassificada' }
 const REASONS = Object.keys(DEFENSE_REASON_LABELS) as DefenseReason[]
+const STEPS = [
+  ['Fechar Classificação', 'Marque quem vai para a Defesa (quem apresenta o pitch) e confirme.'],
+  ['Parecer da banca', 'Depois do pitch, lance para cada ideia: Viável ou Desclassificada.'],
+  ['Fechar Defesa', 'As viáveis formam a Shortlist e seguem para a Votação.'],
+] as const
 
 /** Defesa: fechar a Classificação (quem entra), parecer da banca para cada ideia e fechar a Defesa. */
 export default function DefensePanel({ campaignId, onChange }: { campaignId: string | null; onChange: () => void }) {
@@ -44,6 +49,8 @@ export default function DefensePanel({ campaignId, onChange }: { campaignId: str
   const viable = data.ideas.filter((i) => i.stage === 'shortlist').length
   const out = data.ideas.filter((i) => i.stage === 'desclassificada').length
   const editable = data.can_manage && phase === 'defesa'
+  const pending = data.ideas.some((i) => i.stage === 'em_defesa')
+  const step = phase === 'defesa' ? (pending ? 2 : 3) : phase === 'votacao' || phase === 'encerrada' ? 4 : 1
   return (
     <div className="stack">
       <section className="card">
@@ -52,6 +59,14 @@ export default function DefensePanel({ campaignId, onChange }: { campaignId: str
           Os autores das ideias classificadas defendem o projeto para a banca (fora do app). A banca dá o parecer de viabilidade:
           as viáveis formam a Shortlist, que segue para a Votação; as desclassificadas ficam registradas com o motivo.
         </p>
+        <ol className="steps">
+          {STEPS.map(([title, text], k) => (
+            <li key={title} className={k + 1 === step ? 'step-on' : k + 1 < step ? 'step-done' : undefined}>
+              <strong>{title}</strong>
+              <small className="muted">{text}</small>
+            </li>
+          ))}
+        </ol>
         {error && <Notice kind="error">{error}</Notice>}
         {ok && <Notice kind="ok">{ok}</Notice>}
         {(phase === 'recepcao' || phase === 'analise' || (phase === 'classificacao' && data.candidates.length === 0)) && (
@@ -64,7 +79,7 @@ export default function DefensePanel({ campaignId, onChange }: { campaignId: str
 
       {phase === 'classificacao' && data.candidates.length > 0 && (
         <section className="card">
-          <h2>Fechar Classificação</h2>
+          <h2>1. Fechar Classificação</h2>
           <p className="muted">
             Regra da campanha: <strong>{rule}</strong> (muda em Administração › Campanhas › Regras). As ideias abaixo já vêm marcadas pela regra;
             desmarque ou inclua outras para tratar desistências e empates. Depois de fechar, a Classificação e o Voto de Minerva não mudam mais.
@@ -72,7 +87,7 @@ export default function DefensePanel({ campaignId, onChange }: { campaignId: str
           {data.start_blocker && <Notice kind="error">{data.start_blocker}</Notice>}
           <div className="table-wrap">
             <table className="table ranking">
-              <thead><tr><th>Entra</th><th>Posição</th><th>Ideia</th><th>Resultado</th><th>Nota</th></tr></thead>
+              <thead><tr><th>Vai para a Defesa</th><th>Posição</th><th>Ideia</th><th>Resultado</th><th>Nota</th></tr></thead>
               <tbody>
                 {data.candidates.map((c) => (
                   <tr key={c.id} className={chosen.has(c.id) ? 'row-above' : undefined}>
@@ -103,7 +118,7 @@ export default function DefensePanel({ campaignId, onChange }: { campaignId: str
 
       {data.ideas.length > 0 && (
         <section className="card">
-          <h2>Parecer da banca</h2>
+          <h2>2. Parecer da banca</h2>
           {editable && <p className="muted">Lance o parecer que a banca decidiu. Para desclassificar, marque ao menos um motivo e escreva o comentário. Dá para corrigir até fechar a Defesa.</p>}
           <div className="stack">
             {data.ideas.map((i) => <Verdict key={i.id} idea={i} campaignId={data.campaign_id!} editable={editable} onDone={(d) => { apply(d); onChange() }} />)}
@@ -113,7 +128,7 @@ export default function DefensePanel({ campaignId, onChange }: { campaignId: str
 
       {phase === 'defesa' && (
         <section className="card">
-          <h2>Fechar Defesa</h2>
+          <h2>3. Fechar Defesa</h2>
           <p className="muted">As viáveis formam a Shortlist e seguem para a Votação. As desclassificadas ficam para o banco de ideias.</p>
           {data.close_blocker && <Notice kind="error">{data.close_blocker}</Notice>}
           {data.can_manage
