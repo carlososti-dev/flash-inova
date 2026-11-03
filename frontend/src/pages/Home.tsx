@@ -63,6 +63,14 @@ function CampaignPage({ c }: { c: CampaignPublic }) {
         {c.submission_state === 'encerrada' && <><strong>Inscrições de projetos encerradas</strong><span>O período foi de {fmtDate(c.submission_start)} a {fmtDate(c.submission_end)}.</span></>}
       </section>
 
+      {c.voting_state === 'aberta' && (
+        <section className="card period vote-cta">
+          <strong>A votação está aberta!</strong>
+          <span>Escolha a sua ideia preferida entre as finalistas. Cada pessoa vota uma vez.</span>
+          <Link className="btn btn-primary btn-lg" to={`/votacao?campanha=${c.id}`}>Votar agora</Link>
+        </section>
+      )}
+
       {c.home_text && <section className="card"><Paragraphs text={c.home_text} /></section>}
 
       {(c.video_embed_url || tips.length > 0) && (

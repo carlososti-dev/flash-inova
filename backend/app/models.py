@@ -167,6 +167,8 @@ class Campaign(Timestamps, Base):
                                                          default=CampaignPhase.recepcao)
     # Quando a apuração da Classificação foi gravada (vazio = ainda não apurada).
     classified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Quando o administrador encerrou a Votação e apurou o resultado.
+    voting_closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
 
 
@@ -269,6 +271,9 @@ class Idea(Timestamps, Base):
     defense_comment: Mapped[str | None] = mapped_column(Text)
     defense_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     defense_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Votação: votos recebidos (gravados na apuração) e lugar no pódio (1, 2, 3...) das premiadas.
+    vote_count: Mapped[int | None] = mapped_column(Integer)
+    award_position: Mapped[int | None] = mapped_column(Integer)
 
 
 class IdeaAnswer(Timestamps, Base):
@@ -303,6 +308,41 @@ class Assignment(Timestamps, Base):
     verdict: Mapped[Verdict | None] = mapped_column(_enum(Verdict, "verdict"))
     comment: Mapped[str | None] = mapped_column(Text)
     evaluated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Voter(Timestamps, Base):
+    """Quem já votou na campanha (um voto por pessoa). Não diz em quem: o voto fica em Ballot, sem ligação."""
+    __tablename__ = "voters"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("campaigns.id"))
+    # Pessoa da lista de autorizados e, se tiver conta, o usuário. Basta um dos dois.
+    member_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("authorized_members.id"))
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    method: Mapped[str] = mapped_column(String(20))  # login | codigo
+
+
+class Ballot(Base):
+    """Um voto: só a campanha e a ideia, sem data nem eleitor, para que ninguém consiga ligar o voto à pessoa."""
+    __tablename__ = "ballots"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("campaigns.id"))
+    idea_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ideas.id"))
+
+
+class VoteCode(Timestamps, Base):
+    """Código de 6 dígitos mandado por e-mail a quem vota pela matrícula, sem conta. Só o hash fica gravado."""
+    __tablename__ = "vote_codes"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("campaigns.id"))
+    member_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("authorized_members.id"))
+    code_hash: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AuditLog(Base):

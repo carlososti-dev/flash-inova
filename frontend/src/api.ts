@@ -100,6 +100,27 @@ export async function download(path: string, filename: string): Promise<void> {
   URL.revokeObjectURL(url)
 }
 
+export type VotingState = 'antes' | 'aberta' | 'encerrada'
+export interface VoteIdea {
+  id: string; number: number | null; title: string; line_name: string | null; author_name: string
+  coauthors: string[]; summary: string | null
+}
+export interface VotePage {
+  campaign_id: string | null; campaign_title: string | null; state: VotingState
+  voting_start: string | null; voting_end: string | null; ideas: VoteIdea[]
+  voter: { name: string; method: 'login' | 'codigo'; voted: boolean } | null
+}
+export interface VotingIdea {
+  id: string; number: number | null; title: string; line_name: string | null; author_name: string
+  score: number | null; votes: number; position: number; tied: boolean; winner: boolean; award_position: number | null
+}
+export interface Voting {
+  campaigns: { id: string; title: string }[]; campaign_id: string | null; current_phase: CampaignPhase | null
+  state: VotingState | null; voting_start: string | null; voting_end: string | null; voting_closed_at: string | null
+  num_winners: number; vote_url: string | null; qr_svg: string | null; voters: number; eligible: number
+  can_manage: boolean; close_blocker: string | null; ideas: VotingIdea[]
+}
+
 export type CampaignPhase = 'recepcao' | 'analise' | 'classificacao' | 'defesa' | 'votacao' | 'encerrada'
 export type SubmissionState = 'antes' | 'aberta' | 'encerrada'
 export interface CampaignLine { id: string; name: string; description: string | null; position: number; is_active: boolean }
@@ -122,7 +143,7 @@ export interface CampaignPublic {
   tips_text: string | null; regulation_text: string | null; regulation_version: number | null
   regulation_updated_at: string | null; banner_url: string | null; video_embed_url: string | null
   submission_start: string; submission_end: string; submission_state: SubmissionState; current_phase: CampaignPhase
-  phases: PhaseInfo[]; num_winners: number; lines: CampaignLine[]
+  phases: PhaseInfo[]; num_winners: number; voting_state: VotingState; lines: CampaignLine[]
 }
 
 export type FieldKind = 'texto_curto' | 'texto_longo' | 'lista' | 'sim_nao' | 'anexo'
@@ -160,6 +181,7 @@ export interface BoardCard {
   id: string; number: number | null; title: string; line_name: string | null; author_name: string
   author_sector: string | null; coauthors: number; submitted_at: string | null
   reviews_done: number; reviews_total: number; score: number | null
+  votes: number | null; award_position: number | null
 }
 export interface Board {
   campaigns: { id: string; title: string }[]; campaign_id: string | null
@@ -239,7 +261,7 @@ export const fmtSize = (bytes: number | null) =>
 
 export const PHASE_LABELS: Record<CampaignPhase, string> = {
   recepcao: 'Recepção de ideias', analise: 'Análise', classificacao: 'Classificação', defesa: 'Defesa',
-  votacao: 'Votação', encerrada: 'Encerrada',
+  votacao: 'Votação', encerrada: 'Premiação',
 }
 
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })

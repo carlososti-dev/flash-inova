@@ -111,8 +111,9 @@ def _person(p: AuthorizedMember) -> PersonOut:
 def _summary_fields(db, idea: Idea, c: Campaign, role: str) -> dict:
     line = db.get(CampaignLine, idea.line_id) if idea.line_id else None
     labels = AUTHOR_STAGE_LABELS if role in {"autor", "coautor"} else STAGE_LABELS
+    label = labels[idea.stage] + (f" · {idea.award_position}º lugar" if idea.award_position else "")
     return dict(id=idea.id, campaign_id=c.id, campaign_title=c.title, number=idea.number, title=idea.title,
-                line_name=line.name if line else None, stage=idea.stage, stage_label=labels[idea.stage], role=role,
+                line_name=line.name if line else None, stage=idea.stage, stage_label=label, role=role,
                 submitted_at=idea.submitted_at, updated_at=idea.updated_at,
                 can_edit=role == "autor" and can_edit(idea, c))
 
@@ -425,12 +426,12 @@ def board(campaign_id: uuid.UUID | None = None, user: User = Depends(require_rol
             select(Idea, User.name, User.sector, CampaignLine.name, coauthors)
             .join(User, User.id == Idea.author_id).outerjoin(CampaignLine, CampaignLine.id == Idea.line_id)
             .where(Idea.campaign_id == campaign_id, Idea.stage != IdeaStage.rascunho)
-            .order_by(Idea.number))
+            .order_by(Idea.award_position.asc().nulls_last(), Idea.number))
         for idea, author, sector, line, n_coauthors in rows:
             cards[idea.stage.value].append(BoardCard(
                 id=idea.id, number=idea.number, title=idea.title, line_name=line, author_name=author,
                 author_sector=sector, coauthors=n_coauthors, submitted_at=idea.submitted_at,
                 reviews_done=reviews.get(idea.id, 0), reviews_total=totals.get(idea.id, 0),
-                score=idea.classification_score))
+                score=idea.classification_score, votes=idea.vote_count, award_position=idea.award_position))
     return BoardOut(campaigns=[BoardCampaign(id=c.id, title=c.title) for c in campaigns], campaign_id=campaign_id,
                     columns=[BoardColumn(key=key, label=label, cards=cards[key]) for key, label in BOARD_COLUMNS])

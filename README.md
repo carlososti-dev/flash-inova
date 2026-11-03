@@ -7,6 +7,7 @@ Fatia 4: envio de ideias (formulário configurável, rascunho e envio, coautores
 Fatia 5: distribuição das ideias para o comitê e o menu Análise (parecer de cada avaliador).
 Fatia 6: Classificação (apuração da POC, ranking com linha de corte e Voto de Minerva) e Dashboard dos avaliadores, com alerta por e-mail.
 Fatia 7: Defesa (fechar a Classificação, parecer de viabilidade da banca e fechar a Defesa com a Shortlist para a Votação).
+Fatia 8: Votação (QR code e link na web, login ou matrícula com código por e-mail, contagem ao vivo e apuração com pódio).
 
 - **Backend**: Python, FastAPI, SQLAlchemy, PostgreSQL (`backend/`)
 - **Frontend**: React + Vite + TypeScript (`frontend/`)
@@ -45,6 +46,12 @@ Fatia 7: Defesa (fechar a Classificação, parecer de viabilidade da banca e fec
   - **Fechar Classificação** (só o administrador, sem empates pendentes): a lista vem marcada pela regra da campanha, todas as Classificadas ou só as com nota ≥ linha de corte (opção em Regras), limitadas a N se N estiver preenchido. Dá para desmarcar ou incluir ideias (Classificadas ou Talvez). As escolhidas vão para "Em defesa" e a campanha para a fase Defesa; o Voto de Minerva fica travado.
   - **Parecer da banca**, lançado pelo administrador: Viável (vai para a Shortlist) ou Desclassificada, com ao menos um motivo (viabilidade técnica, viabilidade financeira, projeto igual em andamento, outro) e comentário obrigatório. Pode ser corrigido até o fechamento. O autor vê os motivos em Minhas ideias, sem o comentário.
   - **Fechar Defesa**: todas com parecer e ao menos uma viável. A Shortlist segue para a Votação. Tudo fica na auditoria.
+- **Votação** (Classificação › aba Votação): todos do hospital votam em uma ideia da Shortlist, no celular pelo QR code ou na web pelo mesmo link (`/votacao`). A página inicial mostra "Votar agora" enquanto está aberta.
+  - **Período**: o administrador define abertura e fechamento (um dia no evento ou vários dias online). Fora dele, a tela mostra "Votação fechada".
+  - **Identificação**: quem tem conta entra com o login; quem não tem digita a matrícula e recebe um código de 6 dígitos por e-mail (vale 15 minutos, 5 tentativas). Num aparelho compartilhado, "Sair" libera o próximo.
+  - **Um voto por pessoa**, sem troca, valendo a matrícula e a conta juntas. Quem votou fica registrado numa tabela e o voto em outra, sem ligação entre elas.
+  - **Contagem ao vivo** para quem acompanha (atualiza a cada 10 segundos), com quantas pessoas já votaram. Quem vota não vê o placar.
+  - **Encerrar e apurar** (só o administrador, no fechamento ou antes): as mais votadas (padrão 3) viram 1º, 2º e 3º lugar e vão para "Premiadas"; empate nos votos é decidido pela nota da Classificação. Ideia sem voto não é premiada. A campanha passa para a Premiação.
 - **Linha de corte** editável na própria tela, ranking com a linha marcada e exportação em CSV. O gestor acompanha o ranking sem apurar nem votar. Os cartões do kanban mostram a nota.
 
 ## Rodar localmente

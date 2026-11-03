@@ -21,6 +21,7 @@ from ..schemas import (
     CampaignUpdate,
 )
 from ..storage import get_storage, image_extension
+from ..voting import voting_state
 from .admin import AdminCtx, admin_ctx
 
 router = APIRouter(prefix="/api", tags=["campanhas"])
@@ -387,7 +388,7 @@ def _public_out(db, c: Campaign, tenant) -> CampaignPublic:
         banner_url=storage.url(c.banner_path or tenant.default_banner_path),
         video_embed_url=youtube_embed(c.video_url or tenant.default_video_url),
         submission_start=c.submission_start, submission_end=c.submission_end, submission_state=submission_state(c),
-        current_phase=c.current_phase, phases=phases(c), num_winners=c.num_winners,
+        current_phase=c.current_phase, phases=phases(c), num_winners=c.num_winners, voting_state=voting_state(c),
         lines=[_line_out(x) for x in lines_of(db, c.id, only_active=True)],
     )
 

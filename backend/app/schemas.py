@@ -326,6 +326,7 @@ class CampaignPublic(BaseModel):
     current_phase: CampaignPhase
     phases: list[PhaseOut]
     num_winners: int
+    voting_state: str  # antes | aberta | encerrada
     lines: list[CampaignLineOut]
 
 
@@ -417,6 +418,8 @@ class BoardCard(BaseModel):
     reviews_done: int = 0
     reviews_total: int = 0
     score: int | None = None  # nota da Classificação
+    votes: int | None = None  # votos recebidos, depois da apuração da Votação
+    award_position: int | None = None  # lugar no pódio das premiadas
 
 
 class BoardColumn(BaseModel):
@@ -657,3 +660,83 @@ class ReminderIn(BaseModel):
 class ReminderOut(BaseModel):
     sent: int
     recipients: list[str]
+
+
+# ---------- Votação ----------
+
+class VoteIdea(BaseModel):
+    """Ideia da Shortlist como aparece na tela de votação."""
+    id: uuid.UUID
+    number: int | None
+    title: str
+    line_name: str | None
+    author_name: str
+    coauthors: list[str]
+    summary: str | None
+
+
+class VoterOut(BaseModel):
+    name: str
+    method: str  # login | codigo
+    voted: bool
+
+
+class VoteOut(BaseModel):
+    campaign_id: uuid.UUID | None
+    campaign_title: str | None
+    state: str  # antes | aberta | encerrada
+    voting_start: datetime | None
+    voting_end: datetime | None
+    ideas: list[VoteIdea]  # só com a votação aberta
+    voter: VoterOut | None
+
+
+class VoteCodeIn(BaseModel):
+    campaign_id: uuid.UUID
+    matricula: str = Field(min_length=1, max_length=50)
+
+
+class VoteCodeSent(BaseModel):
+    message: str
+    email_hint: str
+
+
+class VoteVerifyIn(VoteCodeIn):
+    code: str = Field(min_length=1, max_length=10)
+
+
+class VoteIn(BaseModel):
+    campaign_id: uuid.UUID
+    idea_id: uuid.UUID
+
+
+class VotingIdea(BaseModel):
+    id: uuid.UUID
+    number: int | None
+    title: str
+    line_name: str | None
+    author_name: str
+    score: int | None  # nota da Classificação, o desempate
+    votes: int
+    position: int  # posição pela contagem atual (com o desempate)
+    tied: bool  # tem o mesmo número de votos que outra: a posição veio do desempate
+    winner: bool  # premiada (ou, antes da apuração, ficaria no pódio se a votação fechasse agora)
+    award_position: int | None
+
+
+class VotingOut(BaseModel):
+    campaigns: list[BoardCampaign]
+    campaign_id: uuid.UUID | None
+    current_phase: CampaignPhase | None
+    state: str | None  # antes | aberta | encerrada
+    voting_start: datetime | None
+    voting_end: datetime | None
+    voting_closed_at: datetime | None
+    num_winners: int
+    vote_url: str | None
+    qr_svg: str | None  # QR code do link, como data URI (SVG)
+    voters: int
+    eligible: int  # pessoas ativas na lista de autorizados
+    can_manage: bool
+    close_blocker: str | None
+    ideas: list[VotingIdea]
