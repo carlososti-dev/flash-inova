@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from .config import get_settings
-from .routers import admin, analysis, auth, campaigns, classification, dashboard, defense, ideas, platform
+from .routers import admin, analysis, auth, campaigns, classification, dashboard, defense, ideas, platform, voting
 
 
 def create_app() -> FastAPI:
@@ -21,6 +21,7 @@ def create_app() -> FastAPI:
     app.include_router(classification.router)
     app.include_router(dashboard.router)
     app.include_router(defense.router)
+    app.include_router(voting.router)
 
     storage = Path(settings.storage_dir)
     storage.mkdir(parents=True, exist_ok=True)

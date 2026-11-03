@@ -17,6 +17,7 @@ import Login from './pages/Login'
 import Platform from './pages/Platform'
 import Register from './pages/Register'
 import SetPassword from './pages/SetPassword'
+import Vote from './pages/Vote'
 import { SiteProvider, useSite } from './site'
 import './index.css'
 
@@ -50,6 +51,8 @@ function App() {
       <Route path="/plataforma" element={<Guard roles={['consultor']}><Platform /></Guard>} />
       {inTenant ? (
         <>
+          {/* Aberta pelo QR code: a própria tela pede o login ou a matrícula. */}
+          <Route path="/votacao" element={<Vote />} />
           <Route path="/" element={<Guard><Home /></Guard>} />
           <Route path="/campanhas/:id" element={<Guard><Home /></Guard>} />
           <Route path="/campanhas/:id/regulamento" element={<Guard><Regulation /></Guard>} />

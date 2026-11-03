@@ -34,7 +34,7 @@ PHASE_LABELS = {
     CampaignPhase.classificacao: "Classificação",
     CampaignPhase.defesa: "Defesa",
     CampaignPhase.votacao: "Votação",
-    CampaignPhase.encerrada: "Encerrada",
+    CampaignPhase.encerrada: "Premiação",
 }
 
 

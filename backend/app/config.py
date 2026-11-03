@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     max_attachment_bytes: int = 10 * 1024 * 1024
 
     reset_token_hours: int = 1
+    # Votação sem conta: código de 6 dígitos por e-mail e a identificação que ele dá (cookie só para votar).
+    vote_code_minutes: int = 15
+    vote_code_attempts: int = 5
+    vote_code_resend_seconds: int = 60
+    vote_cookie: str = "flash_voto"
+    vote_session_hours: int = 4
     activation_token_hours: int = 72
 
 

@@ -294,3 +294,31 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .steps li strong::before { content: counter(step) ". "; }
 .steps .step-on { border-color: var(--primary); background: var(--primary-soft); }
 .steps .step-done strong::after { content: " ✓"; color: var(--ok); }
+
+/* ---------- Votação ---------- */
+.vote { max-width: 640px; margin: 0 auto; padding: 1rem 16px 3rem; display: grid; gap: 1rem; }
+.vote-head { display: flex; justify-content: center; padding: .5rem 0; }
+.vote h1 { font-size: 1.35rem; margin: 0 0 .5rem; }
+.vote-msg { text-align: center; }
+.vote-big { font-size: 1.3rem; font-weight: 700; margin: 1rem 0; }
+.vote-list { gap: .75rem; }
+.vote-option { padding: .9rem 1rem !important; }
+.vote-option strong { font-size: 1.05rem; }
+.vote-summary { color: var(--text); font-size: .92rem; white-space: pre-line; }
+.vote .btn-lg { width: 100%; }
+.vote-send { position: sticky; bottom: .75rem; }
+.vote-confirm { margin-top: 1rem; padding: 1rem; border: 2px solid var(--primary); border-radius: 8px; background: var(--primary-soft); }
+.vote-confirm p { margin-top: 0; }
+.code-input { font-size: 1.6rem !important; letter-spacing: .4em; text-align: center; }
+.vote-cta { gap: .5rem; }
+.vote-cta .btn { justify-self: start; margin-top: .5rem; }
+.voting-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.qr-card { display: grid; justify-items: center; text-align: center; }
+.qr { width: min(260px, 100%); height: auto; image-rendering: pixelated; background: #fff; border-radius: 8px; }
+.qr-link { word-break: break-all; font-size: .85rem; }
+.votes-cell { position: relative; min-width: 140px; }
+.vote-bar { position: absolute; left: .5rem; bottom: .3rem; height: 4px; max-width: calc(100% - 1rem); border-radius: 2px; background: var(--primary); opacity: .6; }
+.medal { display: inline-block; font-size: .8rem; font-weight: 700; padding: .15rem .55rem; border-radius: 999px; background: var(--primary-soft); color: var(--primary-strong); white-space: nowrap; }
+.medal-1 { background: #fdf0c4; color: #7a5a00; }
+.medal-2 { background: #e8ebef; color: #47515e; }
+.medal-3 { background: #f6e0cf; color: #8a4b1f; }
