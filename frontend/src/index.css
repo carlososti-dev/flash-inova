@@ -306,7 +306,7 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .vote-option strong { font-size: 1.05rem; }
 .vote-summary { color: var(--text); font-size: .92rem; white-space: pre-line; }
 .vote .btn-lg { width: 100%; }
-.vote-send { position: sticky; bottom: .75rem; }
+.vote-send { margin-top: .5rem; }
 .vote-confirm { margin-top: 1rem; padding: 1rem; border: 2px solid var(--primary); border-radius: 8px; background: var(--primary-soft); }
 .vote-confirm p { margin-top: 0; }
 .code-input { font-size: 1.6rem !important; letter-spacing: .4em; text-align: center; }
@@ -322,3 +322,12 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .medal-1 { background: #fdf0c4; color: #7a5a00; }
 .medal-2 { background: #e8ebef; color: #47515e; }
 .medal-3 { background: #f6e0cf; color: #8a4b1f; }
+.vote-item { display: grid; gap: .25rem; }
+.choice .vote-summary-short { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.vote-more { justify-self: start; margin-left: 2.2rem; }
+.vote-detail { display: grid; gap: .75rem; margin: 0 0 .5rem 2.2rem; padding: .75rem 1rem; border-left: 3px solid var(--primary-soft); }
+.vote-detail h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 .25rem; }
+.vote-detail p { margin: 0; }
+.vote-detail .btn { justify-self: start; }
+.vote-files { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.link-button { background: none; border: 0; padding: 0; font: inherit; color: var(--primary); font-weight: 600; text-decoration: underline; cursor: pointer; text-align: left; }

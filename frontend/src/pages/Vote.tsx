@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { api, fmtDateTime, type VotePage } from '../api'
+import { api, download, fmtDateTime, fmtSize, type IdeaAnswer, type VoteIdea, type VotePage } from '../api'
 import { Brand, Notice, useSubmit } from '../components'
 import { useSite } from '../site'
 
@@ -114,14 +114,7 @@ function Ballot({ page, onChange, reload }: { page: VotePage; onChange: (p: Vote
         <fieldset className="choices vote-list" disabled={confirming}>
           <legend className="sr-only">Ideias finalistas</legend>
           {page.ideas.map((i) => (
-            <label key={i.id} className={`choice vote-option${choice === i.id ? ' choice-on' : ''}`}>
-              <input type="radio" name="ideia" checked={choice === i.id} onChange={() => setChoice(i.id)} />
-              <span>
-                <strong>{i.title}</strong>
-                <small>{[i.author_name, ...i.coauthors].join(', ')}{i.line_name && ` · ${i.line_name}`}</small>
-                {i.summary && <span className="vote-summary">{i.summary}</span>}
-              </span>
-            </label>
+            <Option key={i.id} idea={i} chosen={choice === i.id} onChoose={() => setChoice(i.id)} />
           ))}
         </fieldset>
         {!confirming && <button className="btn btn-primary btn-lg vote-send" disabled={!choice}>Votar</button>}
@@ -156,5 +149,66 @@ function Thanks({ page, reload }: { page: VotePage; reload: () => void }) {
         </>
       )}
     </section>
+  )
+}
+
+function answerText(a: IdeaAnswer): string {
+  if (a.kind === 'sim_nao') return a.value ? 'Sim' : 'Não'
+  return String(a.value ?? '')
+}
+
+/** Uma ideia na cédula: o essencial à vista e "Ler a ideia completa" com o resumo inteiro, as respostas e os anexos. */
+function Option({ idea, chosen, onChoose }: { idea: VoteIdea; chosen: boolean; onChoose: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const texts = idea.answers.filter((a) => a.kind !== 'anexo')
+  const files = idea.answers.filter((a) => a.kind === 'anexo')
+  const hasMore = texts.length > 0 || files.length > 0 || Boolean(idea.summary)
+  async function get(a: IdeaAnswer) {
+    setError(null)
+    try { await download(`/api/vote/ideas/${idea.id}/files/${a.field_id}`, a.file_name ?? 'anexo') }
+    catch (e) { setError(e instanceof Error ? e.message : 'Não foi possível baixar o arquivo.') }
+  }
+  return (
+    <div className={`vote-item${chosen ? ' vote-item-on' : ''}`}>
+      <label className={`choice vote-option${chosen ? ' choice-on' : ''}`}>
+        <input type="radio" name="ideia" checked={chosen} onChange={onChoose} />
+        <span>
+          <strong>{idea.title}</strong>
+          <small>{[idea.author_name, ...idea.coauthors].join(', ')}{idea.line_name && ` · ${idea.line_name}`}</small>
+          {idea.summary && <span className={`vote-summary${open ? '' : ' vote-summary-short'}`}>{idea.summary}</span>}
+        </span>
+      </label>
+      {hasMore && (
+        <button type="button" className="btn btn-ghost btn-sm vote-more" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open ? 'Fechar' : 'Ler a ideia completa'}
+        </button>
+      )}
+      {open && (
+        <div className="vote-detail">
+          {texts.map((a) => (
+            <div key={a.field_id}>
+              <h3>{a.label}</h3>
+              <p className="vote-summary">{answerText(a)}</p>
+            </div>
+          ))}
+          {files.length > 0 && (
+            <div>
+              <h3>Anexos</h3>
+              <ul className="vote-files">
+                {files.map((a) => (
+                  <li key={a.field_id}>
+                    <button type="button" className="link-button" onClick={() => get(a)}>{a.file_name}</button>
+                    <small className="muted"> · {a.label}{a.file_size ? ` · ${fmtSize(a.file_size)}` : ''}</small>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {error && <Notice kind="error">{error}</Notice>}
+          {!chosen && <button type="button" className="btn btn-primary" onClick={() => { onChoose(); setOpen(false) }}>Escolher esta ideia</button>}
+        </div>
+      )}
+    </div>
   )
 }

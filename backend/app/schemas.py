@@ -673,6 +673,7 @@ class VoteIdea(BaseModel):
     author_name: str
     coauthors: list[str]
     summary: str | None
+    answers: list[AnswerOut] = []  # respostas do formulário, para ler a ideia inteira antes de votar
 
 
 class VoterOut(BaseModel):

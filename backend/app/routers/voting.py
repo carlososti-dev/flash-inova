@@ -22,8 +22,8 @@ from ..deps import RequestContext, get_context, get_current_user, require_active
 from ..email import EmailMessage, get_email_sender
 from ..links import frontend_link
 from ..models import (
-    AuthorizedMember, Ballot, Campaign, CampaignLine, CampaignPhase, Idea, IdeaCoauthor, IdeaStage, Role, Tenant,
-    User, UserStatus, VoteCode, Voter, utcnow,
+    AuthorizedMember, Ballot, Campaign, CampaignLine, CampaignPhase, FieldKind, Idea, IdeaAnswer, IdeaCoauthor,
+    IdeaStage, Role, Tenant, User, UserStatus, VoteCode, Voter, utcnow,
 )
 from ..schemas import (
     BoardCampaign, Message, VoteCodeIn, VoteCodeSent, VoteIdea, VoteIn, VoteOut, VoterOut, VoteVerifyIn, VotingIdea,
@@ -33,7 +33,7 @@ from ..voting import Standing, email_hint, hash_code, new_code, podium, same_cod
 from .admin import AdminCtx, admin_ctx
 from .campaigns import _get_campaign
 from .classification import _classified, _pick_campaign, _published
-from .ideas import FOLLOWERS
+from .ideas import FOLLOWERS, answers_out, attachment_response
 
 router = APIRouter(prefix="/api", tags=["votação"])
 
@@ -127,7 +127,10 @@ def _shortlist(db, c: Campaign) -> list[VoteIdea]:
             .where(IdeaCoauthor.idea_id.in_([i.id for i, _, _ in rows])).order_by(AuthorizedMember.name)):
         coauthors.setdefault(idea_id, []).append(name)
     return [VoteIdea(id=i.id, number=i.number, title=i.title, line_name=line, author_name=author,
-                     coauthors=coauthors.get(i.id, []), summary=i.summary) for i, author, line in rows]
+                     coauthors=coauthors.get(i.id, []), summary=i.summary,
+                     answers=[a for a in answers_out(db, i.id)
+                              if (a.file_name if a.kind == FieldKind.anexo else a.value is not None)])
+            for i, author, line in rows]
 
 
 def _vote_out(request: Request, ctx: RequestContext, c: Campaign | None, voter: VoterId | None = None) -> VoteOut:
@@ -251,6 +254,25 @@ def cast_vote(body: VoteIn, request: Request, ctx: RequestContext = Depends(get_
         ctx.db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, "Você já votou nesta campanha.") from None
     return _vote_out(request, ctx, c, voter)
+
+
+@router.get("/vote/ideas/{idea_id}/files/{field_id}")
+def vote_attachment(idea_id: uuid.UUID, field_id: uuid.UUID, request: Request,
+                    ctx: RequestContext = Depends(get_context)):
+    """Anexo de uma ideia da votação, para quem já se identificou, enquanto a votação está aberta."""
+    tenant = require_active_tenant(ctx)
+    idea = ctx.db.get(Idea, idea_id)
+    if idea is None or idea.tenant_id != tenant.id or idea.stage != IdeaStage.shortlist:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Arquivo não encontrado.")
+    c = ctx.db.get(Campaign, idea.campaign_id)
+    if voting_state(c) != "aberta":
+        raise HTTPException(status.HTTP_409_CONFLICT, "A votação não está aberta.")
+    if _current_voter(request, ctx, c) is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Identifique-se para ver os anexos.")
+    answer = ctx.db.scalar(select(IdeaAnswer).where(IdeaAnswer.idea_id == idea.id, IdeaAnswer.field_id == field_id))
+    if answer is None or answer.file_path is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Arquivo não encontrado.")
+    return attachment_response(answer.file_path, answer.file_name)
 
 
 # ---------- Acompanhamento e apuração (menu Classificação → Votação) ----------
