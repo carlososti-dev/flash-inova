@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 
 from ..analysis import evaluation_state
+from ..classification import tally
 from ..config import get_settings
 from ..deps import RequestContext, get_context, require_active_tenant, require_roles
 from ..email import EmailMessage, get_email_sender
@@ -17,7 +18,7 @@ from ..models import (
     UserStatus, Voter,
 )
 from ..schemas import (
-    BoardCampaign, CampaignIndicators, CampaignsComparisonOut, CountBy, EvaluatorReport, EvaluatorsReportOut, IdeaReviewStatus, ReminderIn, ReminderOut,
+    AnalysisOutcomes, BoardCampaign, CampaignIndicators, CampaignsComparisonOut, CountBy, EvaluatorReport, EvaluatorsReportOut, IdeaReviewStatus, ReminderIn, ReminderOut,
 )
 from .admin import AdminCtx, admin_ctx
 from .campaigns import _get_campaign
@@ -43,9 +44,28 @@ def _can_remind(db, c: Campaign) -> bool:
     return evaluation_state(c) != "encerrada" and c.classified_at is None and bool(_pending(db, c))
 
 
+# O gestor acompanha o Dashboard só para leitura (sem alerta por e-mail).
+VIEWERS = (Role.administrador, Role.consultor, Role.gestor)
+
+
+def _outcomes(db, c: Campaign, verdicts: dict[uuid.UUID, list], pending: set[uuid.UUID]) -> AnalysisOutcomes:
+    """Apura cada ideia distribuída com a regra da Classificação (pareceres dados + Voto de Minerva). Enquanto a
+    análise está aberta e a apuração não foi feita, ideia com parecer em branco conta como "em análise"."""
+    counts = {s: 0 for s in ("em_analise", "classificada", "talvez", "nao_classificada", "empate")}
+    open_ = c.classified_at is None and evaluation_state(c) != "encerrada"
+    minerva = dict(db.execute(select(Idea.id, Idea.minerva_verdict).where(Idea.id.in_(list(verdicts)))).all())
+    for idea_id, given in verdicts.items():
+        if open_ and idea_id in pending:
+            counts["em_analise"] += 1
+            continue
+        r = tally(given, c.num_evaluators, c.weight_classify, c.weight_maybe, minerva.get(idea_id))
+        counts[r.outcome.value] += 1
+    return AnalysisOutcomes(**counts)
+
+
 @router.get("/dashboard/evaluators", response_model=EvaluatorsReportOut)
 def evaluators_report(campaign_id: uuid.UUID | None = None,
-                      user: User = Depends(require_roles(Role.administrador, Role.consultor)),
+                      user: User = Depends(require_roles(*VIEWERS)),
                       ctx: RequestContext = Depends(get_context)) -> EvaluatorsReportOut:
     tenant = require_active_tenant(ctx)
     db = ctx.db
@@ -58,7 +78,10 @@ def evaluators_report(campaign_id: uuid.UUID | None = None,
     listed = [BoardCampaign(id=x.id, title=x.title) for x in campaigns]
     if c is None:
         return EvaluatorsReportOut(campaigns=listed, campaign_id=None, evaluation_state=None, analysis_end=None,
-                                   can_remind=False, reviews_done=0, reviews_total=0, evaluators=[], ideas=[])
+                                   can_remind=False, reviews_done=0, reviews_total=0, evaluators=[], ideas=[],
+                                   preview=True, outcomes=AnalysisOutcomes(em_analise=0, classificada=0, talvez=0,
+                                                                           nao_classificada=0, empate=0),
+                                   by_line=[], by_sector=[])
 
     rows = list(db.execute(
         select(Assignment, User.name, User.sector, Idea.number, Idea.title, CampaignLine.name)
@@ -73,7 +96,9 @@ def evaluators_report(campaign_id: uuid.UUID | None = None,
 
     people: dict[uuid.UUID, EvaluatorReport] = {}
     ideas: dict[uuid.UUID, IdeaReviewStatus] = {}
+    verdicts: dict[uuid.UUID, list] = {}
     for asg, name, sector, number, title, line in rows:
+        verdicts.setdefault(asg.idea_id, []).append(asg.verdict)
         p = people.setdefault(asg.evaluator_id, EvaluatorReport(
             id=asg.evaluator_id, name=name, sector=sector, assigned=0, evaluated=0, pending=0,
             last_evaluated_at=None, last_reminder_at=reminders.get(str(asg.evaluator_id))))
@@ -89,9 +114,17 @@ def evaluators_report(campaign_id: uuid.UUID | None = None,
             i.done += 1
             if p.last_evaluated_at is None or (asg.evaluated_at and asg.evaluated_at > p.last_evaluated_at):
                 p.last_evaluated_at = asg.evaluated_at
+    sent = list(db.execute(
+        select(CampaignLine.name, User.sector).select_from(Idea).join(User, User.id == Idea.author_id)
+        .outerjoin(CampaignLine, CampaignLine.id == Idea.line_id)
+        .where(Idea.campaign_id == c.id, Idea.stage != IdeaStage.rascunho)))
+    pending = {i for i, v in verdicts.items() if None in v}
     return EvaluatorsReportOut(
         campaigns=listed, campaign_id=c.id, evaluation_state=evaluation_state(c), analysis_end=c.analysis_end,
-        can_remind=_can_remind(db, c), reviews_done=sum(i.done for i in ideas.values()),
+        can_remind=user.role != Role.gestor and _can_remind(db, c),
+        preview=c.classified_at is None, outcomes=_outcomes(db, c, verdicts, pending),
+        by_line=_count_by([line or "Sem linha" for line, _ in sent]),
+        by_sector=_count_by([sector or NO_SECTOR for _, sector in sent]), reviews_done=sum(i.done for i in ideas.values()),
         reviews_total=sum(i.total for i in ideas.values()),
         evaluators=sorted(people.values(), key=lambda p: (-p.pending, p.name.lower())),
         ideas=sorted(ideas.values(), key=lambda i: (i.done - i.total, i.number or 0)))
@@ -163,7 +196,7 @@ def _indicators(db, c: Campaign) -> CampaignIndicators:
 
 
 @router.get("/dashboard/campaigns", response_model=CampaignsComparisonOut)
-def campaigns_comparison(user: User = Depends(require_roles(Role.administrador, Role.consultor)),
+def campaigns_comparison(user: User = Depends(require_roles(*VIEWERS)),
                          ctx: RequestContext = Depends(get_context)) -> CampaignsComparisonOut:
     """Indicadores de cada campanha publicada, da mais antiga para a mais recente, para comparar os ciclos."""
     tenant = require_active_tenant(ctx)

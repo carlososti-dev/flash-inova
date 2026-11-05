@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, fmtDateTime, type EvaluatorsReport } from '../api'
-import { Layout, Notice } from '../components'
+import { BarList, Layout, Notice, SubTabs } from '../components'
+import { useSite } from '../site'
 import CampaignCompare from './CampaignCompare'
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Não foi possível concluir.')
@@ -10,29 +11,48 @@ const DAY = 24 * 60 * 60 * 1000
 /** Dashboard: acompanhamento dos avaliadores e comparação entre campanhas (ciclos). */
 export default function Dashboard() {
   const [params, setParams] = useSearchParams()
-  const tab = params.get('aba') === 'campanhas' ? 'campanhas' : 'avaliadores'
+  const tab = params.get('aba') === 'campanhas' ? 'campanhas' : 'analise'
   const setTab = (aba: string) => setParams({ ...(params.get('campanha') ? { campanha: params.get('campanha')! } : {}), aba }, { replace: true })
   return (
     <Layout>
       <div className="page-head">
         <h1>Dashboard</h1>
-        <p className="muted">{tab === 'avaliadores'
-          ? 'Acompanhamento da análise: quantas ideias cada membro do comitê ainda tem por avaliar.'
+        <p className="muted">{tab === 'analise'
+          ? 'Acompanhamento da análise da campanha: resultado, avaliadores, ideias, setores e linhas.'
           : 'Os indicadores de cada campanha lado a lado, para ver a evolução de um ciclo para o outro.'}</p>
       </div>
       <div className="tabs" role="tablist">
-        <button role="tab" aria-selected={tab === 'avaliadores'} onClick={() => setTab('avaliadores')}>Avaliadores</button>
+        <button role="tab" aria-selected={tab === 'analise'} onClick={() => setTab('analise')}>Análise da campanha</button>
         <button role="tab" aria-selected={tab === 'campanhas'} onClick={() => setTab('campanhas')}>Comparar campanhas</button>
       </div>
-      {tab === 'avaliadores' ? <Evaluators /> : <CampaignCompare />}
+      {tab === 'analise' ? <Evaluators /> : <CampaignCompare />}
     </Layout>
   )
 }
 
+const VIEWS = [
+  { key: 'resultado', label: 'Resultado' }, { key: 'avaliadores', label: 'Avaliadores' },
+  { key: 'ideias', label: 'Ideias' }, { key: 'setores', label: 'Setores e linhas' },
+] as const
+type View = (typeof VIEWS)[number]['key']
+
+const OUTCOMES = [
+  { key: 'em_analise', label: 'Em análise' }, { key: 'classificada', label: 'Classificadas' }, { key: 'talvez', label: 'Talvez' },
+  { key: 'nao_classificada', label: 'Não classificadas' }, { key: 'empate', label: 'Empate (Minerva)' },
+] as const
+
+function Progress({ done, total }: { done: number; total: number }) {
+  const p = total > 0 ? Math.round((100 * done) / total) : 0
+  return <span className="progress" title={`${done} de ${total}`}><span className="progress-track"><span className="progress-bar" style={{ width: `${p}%` }} /></span>{p}%</span>
+}
+
 /** Acompanhamento da análise: quantas ideias cada avaliador ainda tem por avaliar, e o alerta por e-mail. */
 function Evaluators() {
+  const { me } = useSite()
+  const canSeeReviews = me?.role === 'administrador' || me?.role === 'consultor'  // o menu Análise não é do gestor
   const [params, setParams] = useSearchParams()
   const campaign = params.get('campanha')
+  const view: View = VIEWS.find((v) => v.key === params.get('ver'))?.key ?? 'resultado'
   const [r, setR] = useState<EvaluatorsReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
@@ -64,13 +84,16 @@ function Evaluators() {
     } catch (e) { setError(errText(e)) } finally { setBusy(false) }
   }
 
+  const distributed = r?.ideas.length ?? 0
+  const analyzed = distributed - (r?.outcomes.em_analise ?? 0)
+  const sent = r?.by_line.reduce((n, l) => n + l.count, 0) ?? 0
   const daysLeft = r?.analysis_end ? Math.ceil((new Date(r.analysis_end).getTime() - Date.now()) / DAY) : null
   const percent = r && r.reviews_total > 0 ? Math.round((r.reviews_done / r.reviews_total) * 100) : 0
   return (
     <>
       {r && r.campaigns.length > 1 && (
         <div className="filters">
-          <select className="board-select" value={r.campaign_id ?? ''} onChange={(e) => setParams({ campanha: e.target.value })} aria-label="Campanha">
+          <select className="board-select" value={r.campaign_id ?? ''} onChange={(e) => setParams({ campanha: e.target.value, ver: view })} aria-label="Campanha">
             {r.campaigns.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
         </div>
@@ -89,21 +112,59 @@ function Evaluators() {
             </div>
           </div>
 
+          <SubTabs items={VIEWS} value={view} />
+
+          {view === 'resultado' && (
+          <section className="card">
+            <div className="section-head">
+              <h2>Resultado da análise</h2>
+              <span className="pill">{analyzed} de {distributed} ideia(s) analisada(s) ({distributed > 0 ? Math.round((100 * analyzed) / distributed) : 0}%)</span>
+            </div>
+            <p className="muted">{r.preview
+              ? 'Prévia com os pareceres dados até agora, pela regra da Classificação. O resultado oficial sai na apuração.'
+              : 'Resultado da apuração da Classificação, já com o Voto de Minerva.'}</p>
+            <div className="outcomes">
+              {OUTCOMES.map((o) => (
+                <div key={o.key} className="outcome"><strong>{r.outcomes[o.key]}</strong><span>{o.label}</span></div>
+              ))}
+            </div>
+            <h3>Funil de deliberação</h3>
+            <BarList total={distributed} max={distributed} items={OUTCOMES.map((o) => ({ name: o.label, count: r.outcomes[o.key] }))} />
+          </section>
+          )}
+
+          {view === 'setores' && (
+          <div className="grid-2">
+            <section className="card">
+              <h2>Setores que mais enviaram ideias</h2>
+              <p className="muted">Os 10 primeiros, pelo setor do autor. {r.by_sector.length} setor(es) no total.</p>
+              <BarList total={sent} items={r.by_sector.slice(0, 10)} empty="Nenhuma ideia enviada." />
+            </section>
+            <section className="card">
+              <h2>Ideias por linha</h2>
+              <p className="muted">{sent} ideia(s) enviada(s) na campanha.</p>
+              <BarList total={sent} items={r.by_line} empty="Nenhuma ideia enviada." />
+            </section>
+          </div>
+          )}
+
+          {view === 'avaliadores' && (
           <section className="card">
             <h2>Avaliadores</h2>
             {ok && <Notice kind="ok">{ok}</Notice>}
             <div className="table-wrap">
               <table className="table">
-                <thead><tr>{r.can_remind && <th aria-label="Selecionar" />}<th>Avaliador</th><th>Setor</th><th>Ideias</th><th>Avaliadas</th><th>Pendentes</th><th>Último parecer</th><th>Último alerta</th></tr></thead>
+                <thead><tr>{r.can_remind && <th aria-label="Selecionar" />}<th>Avaliador</th><th>Setor</th><th>Ideias</th><th>Avaliadas</th><th>Pendentes</th><th>Progresso</th><th>Último parecer</th><th>Último alerta</th></tr></thead>
                 <tbody>
                   {r.evaluators.map((e) => (
                     <tr key={e.id}>
                       {r.can_remind && <td>{e.pending > 0 && <input type="checkbox" aria-label={`Selecionar ${e.name}`} checked={selected.has(e.id)} onChange={() => toggle(e.id)} />}</td>}
-                      <td>{e.name}</td>
+                      <td>{e.name}{canSeeReviews && <Link className="link small-link" to={`/analise?campanha=${r.campaign_id}&avaliador=${e.id}`}>Ver pareceres</Link>}</td>
                       <td>{e.sector ?? '—'}</td>
                       <td>{e.assigned}</td>
                       <td>{e.evaluated}</td>
                       <td>{e.pending > 0 ? <span className="tag tag-wait">{e.pending}</span> : <span className="tag tag-ok">em dia</span>}</td>
+                      <td><Progress done={e.evaluated} total={e.assigned} /></td>
                       <td>{fmtDateTime(e.last_evaluated_at)}</td>
                       <td>{fmtDateTime(e.last_reminder_at)}</td>
                     </tr>
@@ -123,13 +184,16 @@ function Evaluators() {
                   <button className="btn btn-primary" disabled={busy || targets.length === 0} onClick={remind}>{busy ? 'Enviando…' : `Enviar alerta para ${targets.length} avaliador(es)`}</button>
                 </div>
               </div>
-            ) : (
+            ) : me?.role === 'gestor' ? null : (
               <p className="muted">{withPending.length === 0 ? 'Todos os avaliadores estão em dia.' : 'O período de análise terminou: pareceres em branco não contam na apuração.'}</p>
             )}
           </section>
+          )}
 
+          {view === 'ideias' && (
           <section className="card">
             <h2>Ideias</h2>
+            <p className="muted">As que ainda esperam parecer vêm primeiro.</p>
             <div className="table-wrap">
               <table className="table">
                 <thead><tr><th>Ideia</th><th>Linha</th><th>Pareceres</th><th>Aguardando</th></tr></thead>
@@ -146,6 +210,7 @@ function Evaluators() {
               </table>
             </div>
           </section>
+          )}
         </div>
       )}
     </>

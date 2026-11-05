@@ -63,7 +63,7 @@ function App() {
           <Route path="/analise" element={<Guard roles={['administrador', 'consultor', 'membro_comite']}><Analysis /></Guard>} />
           <Route path="/analise/:id" element={<Guard roles={['administrador', 'consultor', 'membro_comite']}><AssignmentPage /></Guard>} />
           <Route path="/classificacao" element={<Guard roles={['administrador', 'consultor', 'gestor']}><Board /></Guard>} />
-          <Route path="/dashboard" element={<Guard roles={['administrador', 'consultor']}><Dashboard /></Guard>} />
+          <Route path="/dashboard" element={<Guard roles={['administrador', 'consultor', 'gestor']}><Dashboard /></Guard>} />
           <Route path="/administracao" element={<Guard roles={['administrador', 'consultor']}><Admin /></Guard>} />
         </>
       ) : (

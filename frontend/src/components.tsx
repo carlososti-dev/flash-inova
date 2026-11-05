@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom'
 import type { Role } from './api'
 import { useSite } from './site'
 
@@ -52,7 +52,7 @@ const MENU: { to: string; label: string; roles: Role[] | 'all' }[] = [
   { to: '/minhas-ideias', label: 'Minhas ideias', roles: 'all' },
   { to: '/analise', label: 'Análise', roles: ['administrador', 'consultor', 'membro_comite'] },
   { to: '/classificacao', label: 'Classificação', roles: ['administrador', 'consultor', 'gestor'] },
-  { to: '/dashboard', label: 'Dashboard', roles: ['administrador', 'consultor'] },
+  { to: '/dashboard', label: 'Dashboard', roles: ['administrador', 'consultor', 'gestor'] },
   { to: '/administracao', label: 'Administração', roles: ['administrador', 'consultor'] },
 ]
 
@@ -79,3 +79,35 @@ export function Layout({ children }: { children: ReactNode }) {
     </>
   )
 }
+
+/** Lista de barras horizontais de uma só cor (contagem e % do total), com o valor escrito ao lado. */
+export function BarList({ items, total, max, empty = 'Nada ainda.' }: { items: { name: string; count: number }[]; total: number; max?: number; empty?: string }) {
+  if (items.length === 0) return <p className="muted">{empty}</p>
+  const top = Math.max(1, max ?? Math.max(...items.map((i) => i.count)))
+  return (
+    <div className="barlist">
+      {items.map((i) => {
+        const share = total > 0 ? Math.round((100 * i.count) / total) : 0
+        return (
+          <div key={i.name} className="funnel-row barlist-row" title={`${i.name}: ${i.count} (${share}%)`}>
+            <span className="funnel-label">{i.name}</span>
+            <span className="funnel-track"><span className="funnel-bar" style={{ width: `${(100 * i.count) / top}%` }} /></span>
+            <span className="funnel-value">{i.count}<small> {share}%</small></span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Subabas: a escolhida fica no endereço (?ver=), para um link cair direto nela. */
+export function SubTabs<T extends string>({ items, value }: { items: readonly { key: T; label: string }[]; value: T }) {
+  const [params, setParams] = useSearchParams()
+  const go = (ver: T) => { const n = new URLSearchParams(params); n.set('ver', ver); setParams(n, { replace: true }) }
+  return (
+    <div className="tabs subtabs" role="tablist">
+      {items.map((i) => <button key={i.key} role="tab" aria-selected={value === i.key} onClick={() => go(i.key)}>{i.label}</button>)}
+    </div>
+  )
+}
+

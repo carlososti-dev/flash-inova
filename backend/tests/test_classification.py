@@ -66,10 +66,17 @@ def test_alerta_e_relatorio_de_avaliadores(client_for, make_tenant, make_user, o
     assert (first["name"], first["assigned"], first["evaluated"], first["pending"]) == ("Comite2", 3, 2, 1)
     assert report["evaluators"][1]["pending"] == 0
     assert report["ideas"][0]["pending_evaluators"] == ["Comite2"] and report["ideas"][0]["id"] == ideas[2]
+    # Prévia do resultado: A (C+C) classificada, B (C+Nc) empate, D (Nc + em branco) ainda em análise
+    assert report["preview"] is True
+    assert report["outcomes"] == {"em_analise": 1, "classificada": 1, "talvez": 0, "nao_classificada": 0, "empate": 1}
+    assert report["by_line"] == [{"name": "Segurança do paciente", "count": 3}]
 
-    # Só administrador e consultor veem o relatório
+    # O gestor acompanha, sem alerta; o comitê não vê o relatório
     gestor = member_client(client_for, make_user, hnsg, Role.gestor, "gestor@hnsg.org")
-    assert gestor.get("/api/dashboard/evaluators").status_code == 403
+    seen = gestor.get("/api/dashboard/evaluators")
+    assert seen.status_code == 200 and seen.json()["can_remind"] is False
+    assert gestor.post(f"/api/admin/campaigns/{cid}/reminders", json={}).status_code == 403
+    assert members["comite1@hnsg.org"].get("/api/dashboard/evaluators").status_code == 403
     assert members["comite1@hnsg.org"].post(f"/api/admin/campaigns/{cid}/reminders", json={}).status_code == 403
 
     outbox.clear()
@@ -87,7 +94,9 @@ def test_alerta_e_relatorio_de_avaliadores(client_for, make_tenant, make_user, o
 
     # Depois do fim da análise, não há mais alerta
     c.patch(f"/api/admin/campaigns/{cid}", json={"analysis_start": iso(-0.9), "analysis_end": iso(-0.5)})
-    assert c.get("/api/dashboard/evaluators").json()["can_remind"] is False
+    after = c.get("/api/dashboard/evaluators").json()
+    assert after["can_remind"] is False
+    assert after["outcomes"]["em_analise"] == 0 and after["outcomes"]["nao_classificada"] == 1  # em branco não conta
     assert c.post(f"/api/admin/campaigns/{cid}/reminders", json={}).status_code == 409
 
 

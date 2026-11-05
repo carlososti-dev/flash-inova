@@ -254,6 +254,9 @@ export interface EvaluatorsReport {
     last_evaluated_at: string | null; last_reminder_at: string | null
   }[]
   ideas: { id: string; number: number | null; title: string; line_name: string | null; done: number; total: number; pending_evaluators: string[] }[]
+  preview: boolean
+  outcomes: { em_analise: number; classificada: number; talvez: number; nao_classificada: number; empate: number }
+  by_line: CountBy[]; by_sector: CountBy[]
 }
 
 export const fmtSize = (bytes: number | null) =>
