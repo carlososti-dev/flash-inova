@@ -12,9 +12,12 @@ from ..config import get_settings
 from ..deps import RequestContext, get_context, require_active_tenant, require_roles
 from ..email import EmailMessage, get_email_sender
 from ..links import frontend_link
-from ..models import Assignment, AuditLog, Campaign, CampaignLine, Idea, IdeaStage, Role, User, UserStatus
+from ..models import (
+    Assignment, AuditLog, AuthorizedMember, Campaign, CampaignLine, Idea, IdeaCoauthor, IdeaStage, Role, User,
+    UserStatus, Voter,
+)
 from ..schemas import (
-    BoardCampaign, EvaluatorReport, EvaluatorsReportOut, IdeaReviewStatus, ReminderIn, ReminderOut,
+    BoardCampaign, CampaignIndicators, CampaignsComparisonOut, CountBy, EvaluatorReport, EvaluatorsReportOut, IdeaReviewStatus, ReminderIn, ReminderOut,
 )
 from .admin import AdminCtx, admin_ctx
 from .campaigns import _get_campaign
@@ -92,6 +95,84 @@ def evaluators_report(campaign_id: uuid.UUID | None = None,
         reviews_total=sum(i.total for i in ideas.values()),
         evaluators=sorted(people.values(), key=lambda p: (-p.pending, p.name.lower())),
         ideas=sorted(ideas.values(), key=lambda i: (i.done - i.total, i.number or 0)))
+
+
+# Etapas a que a ideia chegou: a etapa gravada é a última, então quem passou adiante conta nas anteriores.
+REACHED_CLASSIFIED = {IdeaStage.classificada, IdeaStage.em_defesa, IdeaStage.shortlist, IdeaStage.desclassificada,
+                      IdeaStage.premiada}
+REACHED_DEFENSE = {IdeaStage.em_defesa, IdeaStage.shortlist, IdeaStage.desclassificada, IdeaStage.premiada}
+REACHED_SHORTLIST = {IdeaStage.shortlist, IdeaStage.premiada}
+NO_SECTOR = "Sem setor"
+
+
+def _days(start: datetime | None, end: datetime | None) -> int | None:
+    return None if start is None or end is None else max(0, round((end - start).total_seconds() / 86400))
+
+
+def _count_by(values: list[str]) -> list[CountBy]:
+    counts: dict[str, int] = {}
+    for v in values:
+        counts[v] = counts.get(v, 0) + 1
+    return [CountBy(name=k, count=n) for k, n in sorted(counts.items(), key=lambda x: (-x[1], x[0].lower()))]
+
+
+def _indicators(db, c: Campaign) -> CampaignIndicators:
+    ideas = list(db.execute(
+        select(Idea.id, Idea.author_id, Idea.stage, Idea.classification_score, Idea.minerva_at,
+               CampaignLine.name, User.sector)
+        .join(User, User.id == Idea.author_id).outerjoin(CampaignLine, CampaignLine.id == Idea.line_id)
+        .where(Idea.campaign_id == c.id, Idea.stage != IdeaStage.rascunho)))
+    ids = [i.id for i in ideas]
+    people = {str(i.author_id) for i in ideas}
+    for member_id, user_id in db.execute(
+            select(AuthorizedMember.id, AuthorizedMember.user_id).join(IdeaCoauthor, IdeaCoauthor.member_id == AuthorizedMember.id)
+            .where(IdeaCoauthor.idea_id.in_(ids))):
+        people.add(str(user_id or member_id))
+
+    verdicts: dict[uuid.UUID, list] = {}
+    evaluators: set[uuid.UUID] = set()
+    total = 0
+    for idea_id, evaluator_id, verdict in db.execute(
+            select(Assignment.idea_id, Assignment.evaluator_id, Assignment.verdict).where(Assignment.campaign_id == c.id)):
+        total += 1
+        evaluators.add(evaluator_id)
+        if verdict is not None:
+            verdicts.setdefault(idea_id, []).append(verdict)
+    compared = [v for v in verdicts.values() if len(v) >= 2]
+    scores = [i.classification_score for i in ideas if i.classification_score is not None]
+    sectors = [i.sector or NO_SECTOR for i in ideas]
+    return CampaignIndicators(
+        id=c.id, title=c.title, phase=c.current_phase, submission_start=c.submission_start,
+        submission_end=c.submission_end,
+        ideas_sent=len(ideas), participants=len(people), sectors=len({s for s in sectors if s != NO_SECTOR}),
+        classified=sum(i.stage in REACHED_CLASSIFIED for i in ideas),
+        defense=sum(i.stage in REACHED_DEFENSE for i in ideas),
+        shortlist=sum(i.stage in REACHED_SHORTLIST for i in ideas),
+        awarded=sum(i.stage == IdeaStage.premiada for i in ideas),
+        evaluators=len(evaluators), reviews_done=sum(len(v) for v in verdicts.values()), reviews_total=total,
+        divergence_pct=round(100 * sum(len(set(v)) > 1 for v in compared) / len(compared), 1) if compared else None,
+        ties=sum(i.minerva_at is not None for i in ideas),
+        avg_score=round(sum(scores) / len(scores), 1) if scores else None,
+        voters=db.scalar(select(func.count()).select_from(Voter).where(Voter.campaign_id == c.id)) or 0,
+        submission_days=_days(c.submission_start, c.submission_end) or 0,
+        analysis_days=_days(c.analysis_start, c.analysis_end),
+        cycle_days=_days(c.submission_start, c.voting_closed_at),
+        by_line=_count_by([i.name or "Sem linha" for i in ideas]),
+        by_sector=_count_by(sectors),
+    )
+
+
+@router.get("/dashboard/campaigns", response_model=CampaignsComparisonOut)
+def campaigns_comparison(user: User = Depends(require_roles(Role.administrador, Role.consultor)),
+                         ctx: RequestContext = Depends(get_context)) -> CampaignsComparisonOut:
+    """Indicadores de cada campanha publicada, da mais antiga para a mais recente, para comparar os ciclos."""
+    tenant = require_active_tenant(ctx)
+    db = ctx.db
+    campaigns = db.scalars(select(Campaign).where(Campaign.tenant_id == tenant.id, Campaign.is_published.is_(True))
+                           .order_by(Campaign.submission_start))
+    eligible = db.scalar(select(func.count()).select_from(AuthorizedMember).where(
+        AuthorizedMember.tenant_id == tenant.id, AuthorizedMember.is_active.is_(True))) or 0
+    return CampaignsComparisonOut(eligible=eligible, campaigns=[_indicators(db, c) for c in campaigns])
 
 
 @router.post("/admin/campaigns/{campaign_id}/reminders", response_model=ReminderOut)

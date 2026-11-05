@@ -2,12 +2,35 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, fmtDateTime, type EvaluatorsReport } from '../api'
 import { Layout, Notice } from '../components'
+import CampaignCompare from './CampaignCompare'
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Não foi possível concluir.')
 const DAY = 24 * 60 * 60 * 1000
 
-/** Acompanhamento da análise: quantas ideias cada avaliador ainda tem por avaliar, e o alerta por e-mail. */
+/** Dashboard: acompanhamento dos avaliadores e comparação entre campanhas (ciclos). */
 export default function Dashboard() {
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('aba') === 'campanhas' ? 'campanhas' : 'avaliadores'
+  const setTab = (aba: string) => setParams({ ...(params.get('campanha') ? { campanha: params.get('campanha')! } : {}), aba }, { replace: true })
+  return (
+    <Layout>
+      <div className="page-head">
+        <h1>Dashboard</h1>
+        <p className="muted">{tab === 'avaliadores'
+          ? 'Acompanhamento da análise: quantas ideias cada membro do comitê ainda tem por avaliar.'
+          : 'Os indicadores de cada campanha lado a lado, para ver a evolução de um ciclo para o outro.'}</p>
+      </div>
+      <div className="tabs" role="tablist">
+        <button role="tab" aria-selected={tab === 'avaliadores'} onClick={() => setTab('avaliadores')}>Avaliadores</button>
+        <button role="tab" aria-selected={tab === 'campanhas'} onClick={() => setTab('campanhas')}>Comparar campanhas</button>
+      </div>
+      {tab === 'avaliadores' ? <Evaluators /> : <CampaignCompare />}
+    </Layout>
+  )
+}
+
+/** Acompanhamento da análise: quantas ideias cada avaliador ainda tem por avaliar, e o alerta por e-mail. */
+function Evaluators() {
   const [params, setParams] = useSearchParams()
   const campaign = params.get('campanha')
   const [r, setR] = useState<EvaluatorsReport | null>(null)
@@ -44,18 +67,14 @@ export default function Dashboard() {
   const daysLeft = r?.analysis_end ? Math.ceil((new Date(r.analysis_end).getTime() - Date.now()) / DAY) : null
   const percent = r && r.reviews_total > 0 ? Math.round((r.reviews_done / r.reviews_total) * 100) : 0
   return (
-    <Layout>
-      <div className="page-head board-head">
-        <div>
-          <h1>Dashboard</h1>
-          <p className="muted">Acompanhamento da análise: quantas ideias cada membro do comitê ainda tem por avaliar.</p>
-        </div>
-        {r && r.campaigns.length > 1 && (
+    <>
+      {r && r.campaigns.length > 1 && (
+        <div className="filters">
           <select className="board-select" value={r.campaign_id ?? ''} onChange={(e) => setParams({ campanha: e.target.value })} aria-label="Campanha">
             {r.campaigns.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
-        )}
-      </div>
+        </div>
+      )}
       {error && <Notice kind="error">{error}</Notice>}
       {r && !r.campaign_id && <section className="card"><p className="muted">Nenhuma ideia foi distribuída para o comitê ainda. O relatório aparece depois da distribuição.</p></section>}
       {r?.campaign_id && (
@@ -129,6 +148,6 @@ export default function Dashboard() {
           </section>
         </div>
       )}
-    </Layout>
+    </>
   )
 }
