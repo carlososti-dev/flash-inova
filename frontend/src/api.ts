@@ -103,7 +103,7 @@ export async function download(path: string, filename: string): Promise<void> {
 export type VotingState = 'antes' | 'aberta' | 'encerrada'
 export interface VoteIdea {
   id: string; number: number | null; title: string; line_name: string | null; author_name: string
-  coauthors: string[]; summary: string | null
+  coauthors: string[]; summary: string | null; answers: IdeaAnswer[]
 }
 export interface VotePage {
   campaign_id: string | null; campaign_title: string | null; state: VotingState
