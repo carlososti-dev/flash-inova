@@ -9,12 +9,13 @@ Tudo fica na região `southamerica-east1` (São Paulo): os dados das instituiç�
 | Arquivos (logos, banners, anexos) | Cloud Storage, bucket privado | menos de US$ 1 |
 | Endereço com subdomínio por cliente e HTTPS | Load Balancer global + certificado curinga | US$ 18 a 20 |
 | Senhas e chaves | Secret Manager | menos de US$ 1 |
+| DNS do domínio | Cloud DNS | US$ 0,20 |
 | E-mail | Amazon SES (região São Paulo) | US$ 0,10 por mil e-mails |
 
 Total no início: cerca de **US$ 55 a 70 por mês** (R$ 300 a 400). Cresce com o uso, não com o número de clientes.
 
-Nos exemplos: domínio `inova.flashresponse.com.br`, então cada cliente fica em `<sigla>.inova.flashresponse.com.br`
-e a Área do Consultor em `inova.flashresponse.com.br`. Troque se escolher outro domínio.
+Domínio: `flashinova.com.br` (registro.br). Cada cliente fica em `<sigla>.flashinova.com.br` (ex.: `hnsg.flashinova.com.br`)
+e a Área do Consultor em `flashinova.com.br` e `www.flashinova.com.br`.
 
 Os comandos rodam no **Cloud Shell** (ícone `>_` no topo do console.cloud.google.com), que já tem `gcloud` e `docker`.
 
@@ -23,10 +24,10 @@ Os comandos rodam no **Cloud Shell** (ícone `>_` no topo do console.cloud.googl
 ```bash
 export PROJECT=flash-inova-prod          # crie o projeto no console com este ID
 export REGION=southamerica-east1
-export DOMAIN=inova.flashresponse.com.br
+export DOMAIN=flashinova.com.br
 gcloud config set project $PROJECT
 gcloud services enable run.googleapis.com sqladmin.googleapis.com secretmanager.googleapis.com \
-  artifactregistry.googleapis.com cloudbuild.googleapis.com compute.googleapis.com certificatemanager.googleapis.com
+  artifactregistry.googleapis.com cloudbuild.googleapis.com compute.googleapis.com certificatemanager.googleapis.com dns.googleapis.com
 ```
 
 ## 1. Banco (Cloud SQL)
@@ -97,7 +98,7 @@ gcloud run jobs execute migrar --region=$REGION --wait
 read -s -p "Senha do Consultor: " SENHA; printf '%s' "$SENHA" | gcloud secrets create consultor-senha --data-file=-; unset SENHA
 gcloud secrets add-iam-policy-binding consultor-senha --member=serviceAccount:$SA --role=roles/secretmanager.secretAccessor
 gcloud run jobs create criar-consultor $COMMON --command=python \
-  --args=-m,app.cli,criar-consultor,--nome,"Seu Nome",--email,voce@flashresponse.com.br \
+  --args=-m,app.cli,criar-consultor,--nome,"Seu Nome",--email,voce@flashinova.com.br \
   --set-secrets=DATABASE_URL=database-url:latest,SECRET_KEY=secret-key:latest,CONSULTOR_SENHA=consultor-senha:latest \
   --set-env-vars=BASE_DOMAIN=$DOMAIN
 gcloud run jobs execute criar-consultor --region=$REGION --wait
@@ -120,7 +121,7 @@ Para a primeira votação ao vivo num evento, use `--min-instances=1` no dia (ev
 
 ## 7. Endereço e HTTPS (subdomínio por cliente)
 
-O Cloud Run sozinho não aceita subdomínio curinga, por isso entra um Load Balancer com certificado `*.inova...`.
+O Cloud Run sozinho não aceita subdomínio curinga, por isso entra um Load Balancer com certificado `*.flashinova.com.br`.
 
 ```bash
 gcloud compute addresses create flash-ip --global
@@ -142,21 +143,26 @@ gcloud compute forwarding-rules create flash-https --global --load-balancing-sch
   --address=flash-ip --target-https-proxy=flash-https --ports=443
 ```
 
-**No painel de DNS do flashresponse.com.br** (onde o domínio está hoje), crie:
+**DNS no Google (Cloud DNS)**: a zona do domínio passa a ficar no Google, onde os registros são criados por comando.
 
-| Tipo | Nome | Valor |
-|---|---|---|
-| A | `inova` | IP do `flash-ip` |
-| A | `*.inova` | IP do `flash-ip` |
-| CNAME | o nome que o `dns-authorizations describe` mostrar | o valor que ele mostrar |
+```bash
+gcloud dns managed-zones create flashinova --dns-name="$DOMAIN." --description="Flash Inova"
+gcloud dns managed-zones describe flashinova --format='value(nameServers)'     # 4 servidores ns-cloud-...
+IP=$(gcloud compute addresses describe flash-ip --global --format='value(address)')
+gcloud dns record-sets create "$DOMAIN." --zone=flashinova --type=A --ttl=300 --rrdatas=$IP
+gcloud dns record-sets create "*.$DOMAIN." --zone=flashinova --type=A --ttl=300 --rrdatas=$IP
+# o CNAME que o "dns-authorizations describe flash-dns" mostrou:
+gcloud dns record-sets create NOME_DO_CNAME --zone=flashinova --type=CNAME --ttl=300 --rrdatas=VALOR_DO_CNAME
+```
 
-O certificado fica ativo em até uma hora depois do DNS. O site atual do flashresponse.com.br não muda.
+**No registro.br**: em flashinova.com.br › DNS › "Alterar servidores DNS", troque pelos 4 servidores `ns-cloud-...`
+que o comando mostrou. A troca leva de minutos a algumas horas. O certificado fica ativo em até uma hora depois disso.
 
 ## 8. E-mail (Amazon SES, São Paulo)
 
-1. Na AWS, região **sa-east-1**, abra o SES e verifique o domínio `inova.flashresponse.com.br` (Easy DKIM).
-2. Crie no DNS os 3 CNAMEs de DKIM que o SES mostrar, mais um TXT SPF em `inova`: `v=spf1 include:amazonses.com ~all`
-   e um TXT DMARC em `_dmarc.inova`: `v=DMARC1; p=none; rua=mailto:voce@flashresponse.com.br`.
+1. Na AWS, região **sa-east-1**, abra o SES e verifique o domínio `flashinova.com.br` (Easy DKIM).
+2. Crie na zona do Cloud DNS os 3 CNAMEs de DKIM que o SES mostrar, mais um TXT SPF no domínio: `v=spf1 include:amazonses.com ~all`
+   e um TXT DMARC em `_dmarc`: `v=DMARC1; p=none; rua=mailto:voce@flashinova.com.br`.
 3. Peça a saída do sandbox (Request production access), explicando que são e-mails transacionais (ativação de conta, senha, código de votação).
 4. Em SMTP settings, crie as credenciais SMTP: o usuário vai em `SMTP_USER`, a senha no segredo `smtp-password`.
 
@@ -174,5 +180,5 @@ O certificado fica ativo em até uma hora depois do DNS. O site atual do flashre
 
 - Erros e logs: Cloud Run › flash-inova › Logs (falhas de e-mail aparecem como "Falha ao enviar e-mail").
 - App fora do ar: crie uma verificação de disponibilidade em Monitoring › Uptime checks para
-  `https://inova.flashresponse.com.br/api/health`, com alerta por e-mail.
+  `https://flashinova.com.br/api/health`, com alerta por e-mail.
 - Orçamento: Faturamento › Orçamentos e alertas, com alerta em 50%, 90% e 100% do valor mensal combinado.
