@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, fmtDate, PHASE_LABELS, type CampaignIndicators, type CampaignPhase, type CampaignsComparison } from '../api'
-import { Notice } from '../components'
+import { useSearchParams } from 'react-router-dom'
+import { Notice, SubTabs } from '../components'
 
 type Value = number | null
 type Row = { label: string; hint?: string; from?: CampaignPhase; value: (c: CampaignIndicators, eligible: number) => Value; unit?: '%' | 'dias'; decimals?: number }
@@ -141,7 +142,14 @@ function Breakdown({ title, note, campaigns, pick }: { title: string; note: stri
 }
 
 /** Comparação entre campanhas (ciclos): os mesmos indicadores lado a lado, da mais antiga para a mais recente. */
+const VIEWS = [
+  { key: 'funil', label: 'Funil' }, { key: 'indicadores', label: 'Indicadores' }, { key: 'linhas', label: 'Linhas e setores' },
+] as const
+type View = (typeof VIEWS)[number]['key']
+
 export default function CampaignCompare() {
+  const [params] = useSearchParams()
+  const view: View = VIEWS.find((v) => v.key === params.get('ver'))?.key ?? 'funil'
   const [data, setData] = useState<CampaignsComparison | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
@@ -156,12 +164,17 @@ export default function CampaignCompare() {
     <div className="stack">
       {cs.length === 1 && <p className="notice notice-ok">Só há uma campanha publicada. A variação aparece a partir da segunda.</p>}
 
+      <SubTabs items={VIEWS} value={view} />
+
+      {view === 'funil' && (
       <section className="card">
         <h2>Funil por campanha</h2>
         <p className="muted">Quantas ideias chegaram a cada etapa. As barras usam a mesma escala em todas as campanhas; a porcentagem é sobre as enviadas.</p>
         <Funnels campaigns={cs} />
       </section>
+      )}
 
+      {view === 'indicadores' && (
       <section className="card">
         <h2>Indicadores</h2>
         <p className="muted">Cada coluna é uma campanha, da mais antiga para a mais recente. Abaixo de cada número, a variação em relação à campanha anterior. Campanhas em andamento ainda vão mudar; “—” indica uma etapa a que a campanha ainda não chegou.</p>
@@ -197,11 +210,12 @@ export default function CampaignCompare() {
         </div>
         <p className="muted small-note">Base da participação: {data.eligible} pessoa(s) ativa(s) na lista de autorizados hoje.</p>
       </section>
+      )}
 
-      <Breakdown title="Ideias por linha" note="Linhas com o mesmo nome em campanhas diferentes ficam na mesma linha da tabela. Entre parênteses, a fatia das ideias da campanha."
-        campaigns={cs} pick={(c) => c.by_line} />
-      <Breakdown title="Ideias por setor" note="Setor do autor principal, como está no cadastro hoje."
-        campaigns={cs} pick={(c) => c.by_sector} />
+      {view === 'linhas' && <Breakdown title="Ideias por linha" note="Linhas com o mesmo nome em campanhas diferentes ficam na mesma linha da tabela. Entre parênteses, a fatia das ideias da campanha."
+        campaigns={cs} pick={(c) => c.by_line} />}
+      {view === 'linhas' && <Breakdown title="Ideias por setor" note="Setor do autor principal, como está no cadastro hoje."
+        campaigns={cs} pick={(c) => c.by_sector} />}
     </div>
   )
 }

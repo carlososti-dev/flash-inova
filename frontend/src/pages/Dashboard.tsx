@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, fmtDateTime, type EvaluatorsReport } from '../api'
-import { BarList, Layout, Notice } from '../components'
+import { BarList, Layout, Notice, SubTabs } from '../components'
 import { useSite } from '../site'
 import CampaignCompare from './CampaignCompare'
 
@@ -11,24 +11,30 @@ const DAY = 24 * 60 * 60 * 1000
 /** Dashboard: acompanhamento dos avaliadores e comparação entre campanhas (ciclos). */
 export default function Dashboard() {
   const [params, setParams] = useSearchParams()
-  const tab = params.get('aba') === 'campanhas' ? 'campanhas' : 'avaliadores'
+  const tab = params.get('aba') === 'campanhas' ? 'campanhas' : 'analise'
   const setTab = (aba: string) => setParams({ ...(params.get('campanha') ? { campanha: params.get('campanha')! } : {}), aba }, { replace: true })
   return (
     <Layout>
       <div className="page-head">
         <h1>Dashboard</h1>
-        <p className="muted">{tab === 'avaliadores'
-          ? 'Acompanhamento da análise: quantas ideias cada membro do comitê ainda tem por avaliar.'
+        <p className="muted">{tab === 'analise'
+          ? 'Acompanhamento da análise da campanha: resultado, avaliadores, ideias, setores e linhas.'
           : 'Os indicadores de cada campanha lado a lado, para ver a evolução de um ciclo para o outro.'}</p>
       </div>
       <div className="tabs" role="tablist">
-        <button role="tab" aria-selected={tab === 'avaliadores'} onClick={() => setTab('avaliadores')}>Avaliadores</button>
+        <button role="tab" aria-selected={tab === 'analise'} onClick={() => setTab('analise')}>Análise da campanha</button>
         <button role="tab" aria-selected={tab === 'campanhas'} onClick={() => setTab('campanhas')}>Comparar campanhas</button>
       </div>
-      {tab === 'avaliadores' ? <Evaluators /> : <CampaignCompare />}
+      {tab === 'analise' ? <Evaluators /> : <CampaignCompare />}
     </Layout>
   )
 }
+
+const VIEWS = [
+  { key: 'resultado', label: 'Resultado' }, { key: 'avaliadores', label: 'Avaliadores' },
+  { key: 'ideias', label: 'Ideias' }, { key: 'setores', label: 'Setores e linhas' },
+] as const
+type View = (typeof VIEWS)[number]['key']
 
 const OUTCOMES = [
   { key: 'em_analise', label: 'Em análise' }, { key: 'classificada', label: 'Classificadas' }, { key: 'talvez', label: 'Talvez' },
@@ -46,6 +52,7 @@ function Evaluators() {
   const canSeeReviews = me?.role === 'administrador' || me?.role === 'consultor'  // o menu Análise não é do gestor
   const [params, setParams] = useSearchParams()
   const campaign = params.get('campanha')
+  const view: View = VIEWS.find((v) => v.key === params.get('ver'))?.key ?? 'resultado'
   const [r, setR] = useState<EvaluatorsReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
@@ -86,7 +93,7 @@ function Evaluators() {
     <>
       {r && r.campaigns.length > 1 && (
         <div className="filters">
-          <select className="board-select" value={r.campaign_id ?? ''} onChange={(e) => setParams({ campanha: e.target.value })} aria-label="Campanha">
+          <select className="board-select" value={r.campaign_id ?? ''} onChange={(e) => setParams({ campanha: e.target.value, ver: view })} aria-label="Campanha">
             {r.campaigns.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
         </div>
@@ -105,6 +112,9 @@ function Evaluators() {
             </div>
           </div>
 
+          <SubTabs items={VIEWS} value={view} />
+
+          {view === 'resultado' && (
           <section className="card">
             <div className="section-head">
               <h2>Resultado da análise</h2>
@@ -121,7 +131,9 @@ function Evaluators() {
             <h3>Funil de deliberação</h3>
             <BarList total={distributed} max={distributed} items={OUTCOMES.map((o) => ({ name: o.label, count: r.outcomes[o.key] }))} />
           </section>
+          )}
 
+          {view === 'setores' && (
           <div className="grid-2">
             <section className="card">
               <h2>Setores que mais enviaram ideias</h2>
@@ -134,7 +146,9 @@ function Evaluators() {
               <BarList total={sent} items={r.by_line} empty="Nenhuma ideia enviada." />
             </section>
           </div>
+          )}
 
+          {view === 'avaliadores' && (
           <section className="card">
             <h2>Avaliadores</h2>
             {ok && <Notice kind="ok">{ok}</Notice>}
@@ -174,9 +188,12 @@ function Evaluators() {
               <p className="muted">{withPending.length === 0 ? 'Todos os avaliadores estão em dia.' : 'O período de análise terminou: pareceres em branco não contam na apuração.'}</p>
             )}
           </section>
+          )}
 
+          {view === 'ideias' && (
           <section className="card">
             <h2>Ideias</h2>
+            <p className="muted">As que ainda esperam parecer vêm primeiro.</p>
             <div className="table-wrap">
               <table className="table">
                 <thead><tr><th>Ideia</th><th>Linha</th><th>Pareceres</th><th>Aguardando</th></tr></thead>
@@ -193,6 +210,7 @@ function Evaluators() {
               </table>
             </div>
           </section>
+          )}
         </div>
       )}
     </>

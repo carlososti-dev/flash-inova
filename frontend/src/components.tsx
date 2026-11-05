@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom'
 import type { Role } from './api'
 import { useSite } from './site'
 
@@ -99,3 +99,15 @@ export function BarList({ items, total, max, empty = 'Nada ainda.' }: { items: {
     </div>
   )
 }
+
+/** Subabas: a escolhida fica no endereço (?ver=), para um link cair direto nela. */
+export function SubTabs<T extends string>({ items, value }: { items: readonly { key: T; label: string }[]; value: T }) {
+  const [params, setParams] = useSearchParams()
+  const go = (ver: T) => { const n = new URLSearchParams(params); n.set('ver', ver); setParams(n, { replace: true }) }
+  return (
+    <div className="tabs subtabs" role="tablist">
+      {items.map((i) => <button key={i.key} role="tab" aria-selected={value === i.key} onClick={() => go(i.key)}>{i.label}</button>)}
+    </div>
+  )
+}
+
