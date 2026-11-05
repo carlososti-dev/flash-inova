@@ -175,3 +175,38 @@ def test_apuracao_e_premiacao(client_for, make_tenant, make_user, owner, outbox)
     autora = client_for(hnsg.slug)
     login(autora, "b@hnsg.org")
     assert autora.get(f"/api/ideas/{ideas[1]}").json()["stage_label"] == "Premiada · 1º lugar"
+
+
+def test_ler_a_ideia_inteira_antes_de_votar(client_for, make_tenant, make_user, owner, outbox):
+    from app.models import CampaignField, FieldKind, IdeaAnswer
+    from app.storage import get_private_storage
+
+    c, hnsg, cid, ideas = _in_voting(client_for, make_tenant, make_user, owner)
+    texto = CampaignField(tenant_id=hnsg.id, campaign_id=cid, kind=FieldKind.texto_longo, label="Problema", position=1)
+    vazio = CampaignField(tenant_id=hnsg.id, campaign_id=cid, kind=FieldKind.texto_curto, label="Em branco", position=2)
+    anexo = CampaignField(tenant_id=hnsg.id, campaign_id=cid, kind=FieldKind.anexo, label="Apresentação", position=3)
+    owner.add_all([texto, vazio, anexo])
+    owner.flush()
+    path = get_private_storage().save("ideias", b"%PDF-1.4 pitch", "pdf")
+    owner.add_all([
+        IdeaAnswer(tenant_id=hnsg.id, idea_id=ideas[0], field_id=texto.id, value="Checklist em papel se perde."),
+        IdeaAnswer(tenant_id=hnsg.id, idea_id=ideas[0], field_id=vazio.id, value=None),
+        IdeaAnswer(tenant_id=hnsg.id, idea_id=ideas[0], field_id=anexo.id, file_path=path, file_name="pitch.pdf",
+                   file_size=14),
+    ])
+    owner.commit()
+    url = f"/api/vote/ideas/{ideas[0]}/files/{anexo.id}"
+    visitor = client_for(hnsg.slug)
+    _open(c, cid)
+
+    # A ideia vem com as respostas preenchidas do formulário, sem as em branco
+    a = visitor.get("/api/vote").json()["ideas"][0]
+    assert [(x["label"], x["value"], x["file_name"]) for x in a["answers"]] == [
+        ("Problema", "Checklist em papel se perde.", None), ("Apresentação", None, "pitch.pdf")]
+    # O anexo só sai para quem já se identificou
+    assert visitor.get(url).status_code == 401
+    visitor.post("/api/vote/code", json={"campaign_id": cid, "matricula": "2002"})
+    visitor.post("/api/vote/verify", json={"campaign_id": cid, "matricula": "2002", "code": _code(outbox)})
+    got = visitor.get(url)
+    assert got.status_code == 200 and got.content == b"%PDF-1.4 pitch"
+    assert visitor.get(f"/api/vote/ideas/{ideas[2]}/files/{anexo.id}").status_code == 404  # fora da Shortlist
