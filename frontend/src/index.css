@@ -331,3 +331,25 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .vote-detail .btn { justify-self: start; }
 .vote-files { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
 .link-button { background: none; border: 0; padding: 0; font: inherit; color: var(--primary); font-weight: 600; text-decoration: underline; cursor: pointer; text-align: left; }
+
+/* Dashboard: comparação entre campanhas */
+.funnels { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.25rem; }
+.funnel { margin: 0; display: grid; gap: .4rem; }
+.funnel figcaption { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; margin-bottom: .25rem; }
+.funnel figcaption span { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+.funnel-row { display: grid; grid-template-columns: 6.5rem 1fr 4rem; align-items: center; gap: .5rem; font-size: .85rem; padding: 2px 0; }
+.funnel-label { color: var(--muted); }
+.funnel-track { height: 12px; }
+.funnel-bar { display: block; height: 100%; min-width: 2px; background: var(--primary); border-radius: 0 4px 4px 0; }
+.funnel-row:hover .funnel-bar { background: var(--primary-strong); }
+.funnel-value { text-align: right; font-variant-numeric: tabular-nums; }
+.funnel-value small { color: var(--muted); }
+.compare-table th small, .compare-hint { display: block; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); font-size: .75rem; }
+.compare-title { display: block; color: var(--text); font-size: .85rem; }
+.compare-group td { background: var(--bg); font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.compare-cell { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.compare-cell strong { display: block; }
+.delta { display: block; font-size: .75rem; color: var(--muted); }
+.muted-inline { color: var(--muted); }
+.small-note { font-size: .8rem; margin: .75rem 0 0; }
+.funnel-pending { border-bottom: 1px dashed var(--border); height: 6px; align-self: start; }

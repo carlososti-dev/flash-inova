@@ -741,3 +741,48 @@ class VotingOut(BaseModel):
     can_manage: bool
     close_blocker: str | None
     ideas: list[VotingIdea]
+
+
+# ---------- Dashboard: comparação entre campanhas ----------
+
+class CountBy(BaseModel):
+    name: str
+    count: int
+
+
+class CampaignIndicators(BaseModel):
+    """Indicadores de um ciclo (campanha), para comparar com os outros (ISO 56002: medir e melhorar a cada ciclo)."""
+    id: uuid.UUID
+    title: str
+    phase: CampaignPhase
+    submission_start: datetime
+    submission_end: datetime
+    # Participação
+    ideas_sent: int
+    participants: int  # autores e coautores distintos
+    sectors: int  # setores dos autores
+    # Funil: quantas ideias chegaram a cada etapa
+    classified: int  # Classificadas (inclui as que seguiram para a Defesa)
+    defense: int
+    shortlist: int
+    awarded: int
+    # Análise
+    evaluators: int
+    reviews_done: int
+    reviews_total: int
+    divergence_pct: float | None  # % das ideias com 2+ pareceres em que os avaliadores não concordaram
+    ties: int  # ideias decididas pelo Voto de Minerva
+    avg_score: float | None  # nota média da Classificação
+    # Votação
+    voters: int
+    # Tempo (dias)
+    submission_days: int
+    analysis_days: int | None
+    cycle_days: int | None  # do início das inscrições até a apuração da Votação
+    by_line: list[CountBy]
+    by_sector: list[CountBy]
+
+
+class CampaignsComparisonOut(BaseModel):
+    eligible: int  # pessoas ativas na lista de autorizados (base da participação)
+    campaigns: list[CampaignIndicators]

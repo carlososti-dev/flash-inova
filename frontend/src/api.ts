@@ -268,3 +268,15 @@ const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-dig
 const dateTimeFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 export const fmtDate = (iso: string | null) => (iso ? dateFmt.format(new Date(iso)) : '—')
 export const fmtDateTime = (iso: string | null) => (iso ? dateTimeFmt.format(new Date(iso)) : '—')
+
+export interface CountBy { name: string; count: number }
+export interface CampaignIndicators {
+  id: string; title: string; phase: CampaignPhase; submission_start: string; submission_end: string
+  ideas_sent: number; participants: number; sectors: number
+  classified: number; defense: number; shortlist: number; awarded: number
+  evaluators: number; reviews_done: number; reviews_total: number; divergence_pct: number | null; ties: number
+  avg_score: number | null; voters: number
+  submission_days: number; analysis_days: number | null; cycle_days: number | null
+  by_line: CountBy[]; by_sector: CountBy[]
+}
+export interface CampaignsComparison { eligible: number; campaigns: CampaignIndicators[] }
