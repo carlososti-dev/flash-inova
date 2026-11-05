@@ -28,4 +28,6 @@ def test_comparacao_entre_campanhas(client_for, make_tenant, make_user, owner):
     assert (second["ideas_sent"], second["divergence_pct"], second["avg_score"]) == (0, None, None)
 
     gestor = member_client(client_for, make_user, hnsg, Role.gestor, "gestor@hnsg.org")
-    assert gestor.get("/api/dashboard/campaigns").status_code == 403
+    assert gestor.get("/api/dashboard/campaigns").status_code == 200  # o gestor acompanha
+    colaborador = member_client(client_for, make_user, hnsg, Role.colaborador, "colab@hnsg.org")
+    assert colaborador.get("/api/dashboard/campaigns").status_code == 403

@@ -619,6 +619,20 @@ class DefenseVerdictIn(BaseModel):
 
 # ---------- Dashboard: acompanhamento dos avaliadores ----------
 
+class CountBy(BaseModel):
+    name: str
+    count: int
+
+
+class AnalysisOutcomes(BaseModel):
+    """Resultado da análise das ideias distribuídas (antes da apuração, uma prévia com os pareceres dados)."""
+    em_analise: int  # ainda com parecer em branco, dentro da análise
+    classificada: int
+    talvez: int
+    nao_classificada: int
+    empate: int  # vai (ou foi) para o Voto de Minerva
+
+
 class EvaluatorReport(BaseModel):
     id: uuid.UUID
     name: str
@@ -650,6 +664,10 @@ class EvaluatorsReportOut(BaseModel):
     reviews_total: int
     evaluators: list[EvaluatorReport]
     ideas: list[IdeaReviewStatus]
+    preview: bool  # True enquanto a Classificação não foi apurada
+    outcomes: AnalysisOutcomes
+    by_line: list[CountBy]  # ideias enviadas na campanha, por linha
+    by_sector: list[CountBy]  # e por setor do autor
 
 
 class ReminderIn(BaseModel):
@@ -744,11 +762,6 @@ class VotingOut(BaseModel):
 
 
 # ---------- Dashboard: comparação entre campanhas ----------
-
-class CountBy(BaseModel):
-    name: str
-    count: int
-
 
 class CampaignIndicators(BaseModel):
     """Indicadores de um ciclo (campanha), para comparar com os outros (ISO 56002: medir e melhorar a cada ciclo)."""

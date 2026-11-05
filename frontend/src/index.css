@@ -353,3 +353,19 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .muted-inline { color: var(--muted); }
 .small-note { font-size: .8rem; margin: .75rem 0 0; }
 .funnel-pending { border-bottom: 1px dashed var(--border); height: 6px; align-self: start; }
+
+/* Dashboard › Avaliadores: resultado da análise, setores e linhas, progresso */
+.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; flex-wrap: wrap; }
+.pill { font-size: .8rem; font-weight: 600; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: .2rem .7rem; }
+.outcomes { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .75rem; margin-bottom: 1.25rem; }
+.outcome { border: 1px solid var(--border); border-radius: 10px; padding: .75rem 1rem; display: grid; gap: .15rem; }
+.outcome strong { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.outcome span { font-size: .85rem; color: var(--muted); }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; }
+.barlist { display: grid; gap: .35rem; }
+.barlist-row { grid-template-columns: minmax(7rem, 11rem) 1fr 4.5rem; }
+.barlist-row .funnel-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.progress { display: inline-flex; align-items: center; gap: .5rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.progress-track { width: 70px; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.progress-bar { display: block; height: 100%; background: var(--primary); border-radius: 0 4px 4px 0; }
+.small-link { display: block; font-size: .78rem; white-space: nowrap; }
