@@ -9,6 +9,7 @@ Fatia 6: Classificação (apuração da POC, ranking com linha de corte e Voto d
 Fatia 7: Defesa (fechar a Classificação, parecer de viabilidade da banca e fechar a Defesa com a Shortlist para a Votação).
 Fatia 8: Votação (QR code e link na web, login ou matrícula com código por e-mail, contagem ao vivo e apuração com pódio).
 Dashboard › Comparar campanhas: os indicadores de cada ciclo lado a lado (ISO 56002).
+Fatia 9: produção no Google Cloud (São Paulo): imagem Docker única, e-mail por SMTP, arquivos no Cloud Storage e o guia de implantação com backup em [`deploy/GOOGLE_CLOUD.md`](deploy/GOOGLE_CLOUD.md).
 
 - **Backend**: Python, FastAPI, SQLAlchemy, PostgreSQL (`backend/`)
 - **Frontend**: React + Vite + TypeScript (`frontend/`)
@@ -105,3 +106,17 @@ Cobrem: importação da lista (conferência, erros por linha, XLSX, reimportaç�
 ## Próximas fatias
 
 Depois: distribuição duplo-cego, análise, classificação, defesa, votação e resultados.
+
+## Produção
+
+Uma única imagem (`Dockerfile` na raiz) entrega a API e o app React. O passo a passo para o Google Cloud,
+com banco, arquivos, e-mail, subdomínio por cliente, backup e monitoramento, está em [`deploy/GOOGLE_CLOUD.md`](deploy/GOOGLE_CLOUD.md).
+
+Variáveis de produção, além das do `.env.example`:
+
+| Variável | Para quê |
+|---|---|
+| `EMAIL_BACKEND=smtp`, `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`, `EMAIL_FROM_NAME` | E-mail de verdade (Amazon SES, Resend, Google Workspace) |
+| `STORAGE_BACKEND=gcs`, `GCS_BUCKET` | Logos, banners e anexos num bucket privado do Cloud Storage |
+| `FRONTEND_DIST` | Pasta do build do frontend (a imagem já define) |
+| `ALLOW_TENANT_OVERRIDE=false`, `COOKIE_SECURE=true`, `PUBLIC_SCHEME=https` | Já definidas na imagem |

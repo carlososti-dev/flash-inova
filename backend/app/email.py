@@ -1,4 +1,7 @@
 import logging
+import smtplib
+from email.message import EmailMessage as MimeMessage
+from email.utils import formataddr, make_msgid
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Protocol
@@ -36,9 +39,33 @@ class MemoryEmailSender:
         self.outbox.append(message)
 
 
+class SmtpEmailSender:
+    """Produção: SMTP com STARTTLS (Amazon SES, Resend, Google Workspace...). Uma conexão por e-mail."""
+
+    def send(self, message: EmailMessage) -> None:
+        s = get_settings()
+        mime = MimeMessage()
+        mime["From"] = formataddr((s.email_from_name, s.email_from))
+        mime["To"] = message.to
+        mime["Subject"] = message.subject
+        mime["Message-ID"] = make_msgid(domain=s.email_from.rsplit("@", 1)[-1])
+        mime.set_content(message.body)
+        try:
+            with smtplib.SMTP(s.smtp_host, s.smtp_port, timeout=15) as smtp:
+                smtp.starttls()
+                if s.smtp_user:
+                    smtp.login(s.smtp_user, s.smtp_password)
+                smtp.send_message(mime)
+        except (smtplib.SMTPException, OSError):
+            # Não derruba a tela de quem pediu o e-mail; o erro fica no log (e no monitoramento).
+            log.exception("Falha ao enviar e-mail para %s (%s)", message.to, message.subject)
+
+
 @lru_cache
 def get_email_sender() -> EmailSender:
-    # Produção: implementar um serviço transacional (ex.: SendGrid, SES) com o mesmo método send().
-    if get_settings().email_backend == "memory":
+    backend = get_settings().email_backend
+    if backend == "memory":
         return MemoryEmailSender()
+    if backend == "smtp":
+        return SmtpEmailSender()
     return ConsoleEmailSender()

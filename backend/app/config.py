@@ -22,11 +22,19 @@ class Settings(BaseSettings):
     public_scheme: str = "http"
     frontend_port: str = "5173"
 
-    email_backend: str = "console"  # console | memory
+    email_backend: str = "console"  # console | memory | smtp
     email_from: str = "nao-responda@flashinova.local"
+    email_from_name: str = "Flash Inova"
+    # SMTP (produção): Amazon SES, Resend, Google Workspace e outros falam SMTP com STARTTLS na porta 587.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
     # Fuso das datas escritas nos e-mails (prazos).
     timezone: str = "America/Sao_Paulo"
 
+    storage_backend: str = "local"  # local | gcs
+    gcs_bucket: str = ""  # bucket privado do Google Cloud Storage (storage_backend=gcs)
     storage_dir: str = "storage"
     # Anexos das ideias: fora da pasta pública /files; só saem pela API, com conferência de permissão.
     private_storage_dir: str = "storage_private"
@@ -42,6 +50,9 @@ class Settings(BaseSettings):
     vote_cookie: str = "flash_voto"
     vote_session_hours: int = 4
     activation_token_hours: int = 72
+
+    # Produção: pasta com o build do frontend (npm run build), servida pelo próprio backend.
+    frontend_dist: str = ""
 
 
 @lru_cache

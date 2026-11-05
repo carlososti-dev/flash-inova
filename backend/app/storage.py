@@ -43,11 +43,11 @@ def attachment_extension(data: bytes, filename: str) -> str | None:
 class Storage(Protocol):
     def save(self, folder: str, data: bytes, extension: str) -> str: ...
     def url(self, path: str | None) -> str | None: ...
-    def local_path(self, path: str) -> Path: ...
+    def read(self, path: str) -> bytes | None: ...
 
 
 class LocalStorage:
-    """Desenvolvimento: arquivos numa pasta local, servidos em /files. Produção: Cloud Storage com a mesma interface."""
+    """Desenvolvimento: arquivos numa pasta local, servidos em /files."""
 
     def __init__(self, root: str):
         self.root = Path(root)
@@ -62,15 +62,54 @@ class LocalStorage:
     def url(self, path: str | None) -> str | None:
         return f"/files/{path}" if path else None
 
-    def local_path(self, path: str) -> Path:
-        return self.root / path
+    def read(self, path: str) -> bytes | None:
+        root = self.root.resolve()
+        target = (root / path).resolve()
+        if not target.is_relative_to(root) or not target.is_file():
+            return None
+        return target.read_bytes()
+
+
+class CloudStorage:
+    """Produção: um bucket privado do Google Cloud Storage (o app lê e entrega; nada fica público no bucket)."""
+
+    def __init__(self, bucket: str, prefix: str):
+        from google.cloud import storage  # importado só em produção
+
+        self.bucket = storage.Client().bucket(bucket)
+        self.prefix = prefix
+
+    def save(self, folder: str, data: bytes, extension: str) -> str:
+        path = f"{folder}/{uuid.uuid4().hex}.{extension}"
+        self.bucket.blob(f"{self.prefix}/{path}").upload_from_string(data)
+        return path
+
+    def url(self, path: str | None) -> str | None:
+        return f"/files/{path}" if path else None
+
+    def read(self, path: str) -> bytes | None:
+        from google.api_core.exceptions import NotFound
+
+        if ".." in path.split("/"):
+            return None
+        try:
+            return self.bucket.blob(f"{self.prefix}/{path}").download_as_bytes()
+        except NotFound:
+            return None
+
+
+def _make(local_dir: str, prefix: str) -> Storage:
+    s = get_settings()
+    if s.storage_backend == "gcs":
+        return CloudStorage(s.gcs_bucket, prefix)
+    return LocalStorage(local_dir)
 
 
 @lru_cache
 def get_storage() -> Storage:
-    return LocalStorage(get_settings().storage_dir)
+    return _make(get_settings().storage_dir, "public")
 
 
 @lru_cache
 def get_private_storage() -> Storage:
-    return LocalStorage(get_settings().private_storage_dir)
+    return _make(get_settings().private_storage_dir, "private")

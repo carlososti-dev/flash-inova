@@ -1,6 +1,10 @@
-"""Cria o primeiro Consultor: python -m app.cli criar-consultor --nome "..." --email ..."""
+"""Cria o primeiro Consultor: python -m app.cli criar-consultor --nome "..." --email ...
+
+A senha é pedida no terminal. Num servidor sem terminal (Cloud Run Jobs), vem da variável CONSULTOR_SENHA.
+"""
 import argparse
 import getpass
+import os
 import sys
 
 from sqlalchemy import func, select
@@ -11,7 +15,7 @@ from .security import hash_password, password_problem
 
 
 def criar_consultor(nome: str, email: str) -> None:
-    password = getpass.getpass("Senha: ")
+    password = os.environ.get("CONSULTOR_SENHA") or getpass.getpass("Senha: ")
     problem = password_problem(password)
     if problem:
         sys.exit(problem)
