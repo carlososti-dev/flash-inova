@@ -4,9 +4,9 @@ Quem vê uma ideia: o autor (sempre), os coautores (depois de enviada) e quem ac
 (administrador, consultor e gestor), também só depois de enviada. O rascunho só o autor vê.
 """
 import uuid
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
-from fastapi.responses import FileResponse
 from sqlalchemy import func, or_, select
 
 from .. import audit
@@ -125,12 +125,17 @@ def answers_out(db, idea_id: uuid.UUID) -> list[AnswerOut]:
                       file_size=a.file_size) for a, f in rows]
 
 
-def attachment_response(path: str, filename: str | None) -> FileResponse:
+def attachment_response(path: str, filename: str | None) -> Response:
     extension = path.rsplit(".", 1)[-1]
-    return FileResponse(get_private_storage().local_path(path),
-                        media_type=ATTACHMENT_TYPES.get(extension, "application/octet-stream"),
-                        filename=filename, content_disposition_type="attachment",
-                        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"})
+    data = get_private_storage().read(path)
+    if data is None:
+        raise HTTPException(404, "Arquivo não encontrado.")
+    disposition = "attachment"
+    if filename:
+        disposition += f"; filename*=UTF-8''{quote(filename)}"
+    return Response(data, media_type=ATTACHMENT_TYPES.get(extension, "application/octet-stream"),
+                    headers={"Content-Disposition": disposition, "X-Content-Type-Options": "nosniff",
+                             "Cache-Control": "private, no-store"})
 
 
 def _idea_out(db, idea: Idea, c: Campaign, role: str) -> IdeaOut:
@@ -388,7 +393,7 @@ def remove_attachment(idea_id: uuid.UUID, field_id: uuid.UUID, m: MemberCtx = De
 
 
 @router.get("/ideas/{idea_id}/files/{field_id}")
-def download_attachment(idea_id: uuid.UUID, field_id: uuid.UUID, m: MemberCtx = Depends(member_ctx)) -> FileResponse:
+def download_attachment(idea_id: uuid.UUID, field_id: uuid.UUID, m: MemberCtx = Depends(member_ctx)) -> Response:
     idea, c, _ = _get_idea(m, idea_id)
     f = _attachment_field(m, c, field_id, only_active=False)
     answer = _answers(m.db, idea.id).get(f.id)
