@@ -109,7 +109,7 @@ Depois: distribuição duplo-cego, análise, classificação, defesa, votação 
 
 ## Produção
 
-Uma única imagem (`Dockerfile` na raiz) entrega a API e o app React. O passo a passo para o Google Cloud,
+Uma única imagem (`Dockerfile` na raiz) entrega a API e o app React. O passo a passo para quem vai implantar pela primeira vez está em [`deploy/PASSO_A_PASSO.md`](deploy/PASSO_A_PASSO.md). A referência para o Google Cloud,
 com banco, arquivos, e-mail, subdomínio por cliente, backup e monitoramento, está em [`deploy/GOOGLE_CLOUD.md`](deploy/GOOGLE_CLOUD.md).
 
 Variáveis de produção, além das do `.env.example`:

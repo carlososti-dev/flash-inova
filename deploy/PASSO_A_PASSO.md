@@ -1,0 +1,258 @@
+# Passo a passo: Flash Inova no Google Cloud
+
+Para fazer com a conta Google que você já usa. Cada bloco cinza é para **copiar e colar** no Cloud Shell
+(o terminal do Google que abre no navegador). Leve umas 2 horas na primeira vez, com pausas para o DNS.
+
+**Resultado:** o app em `https://flashinova.com.br` (sua Área do Consultor) e cada cliente em `https://sigla.flashinova.com.br`.
+
+**Custo enquanto testa:** cerca de R$ 250 a 300 por mês (banco pequeno + Load Balancer). Dá para pausar o banco
+quando não estiver testando (passo 13).
+
+> Antes de começar: aprove e faça o merge do PR #12 no GitHub. O passo a passo usa os arquivos dele.
+
+---
+
+## 1. Criar um projeto só para o Flash Inova (5 min, no navegador)
+
+Um projeto separado não mistura custos nem permissões com os serviços que você já tem.
+
+1. Abra https://console.cloud.google.com entrando com a sua conta.
+2. No topo, clique no seletor de projetos › **Novo projeto**.
+3. Nome: `Flash Inova`. Anote o **ID do projeto** que aparece embaixo (ex.: `flash-inova-123456`).
+4. **Faturamento**: menu ☰ › Faturamento › "Vincular uma conta de faturamento" e escolha a mesma conta que você já usa.
+5. **Alerta de orçamento**: Faturamento › Orçamentos e alertas › Criar orçamento.
+   Escopo: só o projeto Flash Inova. Valor: R$ 400. Alertas em 50%, 90% e 100%. (O alerta avisa, não corta o serviço.)
+
+## 2. Abrir o Cloud Shell e baixar o app (5 min)
+
+1. Com o projeto Flash Inova selecionado, clique no ícone **`>_`** (Ativar o Cloud Shell) no topo, à direita.
+2. Cole, trocando o ID do projeto pelo seu:
+
+```bash
+cat > ~/flash.env <<'FIM'
+export PROJECT=COLE_AQUI_O_ID_DO_PROJETO
+export REGION=southamerica-east1
+export DOMAIN=flashinova.com.br
+export SA=flash-app@$PROJECT.iam.gserviceaccount.com
+export CONN=$PROJECT:$REGION:flash-db
+FIM
+echo 'source ~/flash.env' >> ~/.bashrc
+source ~/flash.env
+gcloud config set project $PROJECT
+git clone https://github.com/carlososti-dev/flash-inova.git ~/flash-inova
+cd ~/flash-inova
+```
+
+> O arquivo `~/flash.env` guarda as configurações. Se o Cloud Shell fechar, ao abrir de novo elas já voltam.
+> Se o `git clone` pedir senha (repositório privado), use seu usuário do GitHub e um token criado em
+> GitHub › Settings › Developer settings › Personal access tokens.
+
+## 3. Ligar os serviços do Google (3 min)
+
+```bash
+gcloud services enable run.googleapis.com sqladmin.googleapis.com secretmanager.googleapis.com \
+  artifactregistry.googleapis.com cloudbuild.googleapis.com compute.googleapis.com \
+  certificatemanager.googleapis.com dns.googleapis.com
+```
+
+## 4. Criar o banco de dados (15 min, a maior parte esperando)
+
+```bash
+echo "export SENHA_DONO='$(openssl rand -hex 20)'" >> ~/flash.env
+echo "export SENHA_APP='$(openssl rand -hex 20)'" >> ~/flash.env
+source ~/flash.env
+
+gcloud sql instances create flash-db --database-version=POSTGRES_16 --region=$REGION \
+  --edition=ENTERPRISE --tier=db-f1-micro --storage-size=10 --storage-auto-increase \
+  --backup-start-time=05:00 --enable-point-in-time-recovery --retained-backups-count=30 \
+  --deletion-protection
+gcloud sql databases create flash_inova --instance=flash-db
+gcloud sql users create flash_owner --instance=flash-db --password="$SENHA_DONO"
+echo "Senha do dono: $SENHA_DONO"
+```
+
+`db-f1-micro` é o menor banco, bom para testes. No lançamento, troque por `db-g1-small` (passo 13).
+
+Agora crie o usuário que o app usa. Ele **não pode** ser o dono das tabelas, senão a separação entre clientes deixa de valer.
+Primeiro rode e copie o comando que aparece:
+
+```bash
+echo "CREATE ROLE flash_app LOGIN PASSWORD '$SENHA_APP' NOSUPERUSER NOBYPASSRLS; GRANT CONNECT ON DATABASE flash_inova TO flash_app; GRANT USAGE ON SCHEMA public TO flash_app;"
+```
+
+Depois conecte (ele pede a "Senha do dono" mostrada acima), cole o comando copiado, dê Enter e saia com `\q`:
+
+```bash
+gcloud sql connect flash-db --user=flash_owner --database=flash_inova
+```
+
+## 5. Criar a pasta de arquivos (1 min)
+
+Logotipos, banners e anexos das ideias. Ela é privada: só o app lê.
+
+```bash
+gcloud storage buckets create gs://$PROJECT-arquivos --location=$REGION \
+  --uniform-bucket-level-access --public-access-prevention
+gcloud storage buckets update gs://$PROJECT-arquivos --versioning
+```
+
+## 6. E-mail para os testes (5 min)
+
+Durante os testes, o app envia pelo e-mail corporativo da flashresponse. Peça ao provedor (ou veja no painel dele)
+o **servidor SMTP** e a **porta** (quase sempre 587). Crie, se puder, uma caixa só para isso, como `nao-responda@flashresponse.com.br`.
+
+```bash
+cat >> ~/flash.env <<'FIM'
+export SMTP_HOST=smtp.SEU-PROVEDOR.com.br
+export SMTP_PORT=587
+export SMTP_USER=nao-responda@flashresponse.com.br
+export EMAIL_FROM=nao-responda@flashresponse.com.br
+FIM
+source ~/flash.env
+read -s -p "Senha do e-mail $SMTP_USER: " SENHA_SMTP; echo
+```
+
+> No lançamento, troque pelo Amazon SES com o domínio flashinova.com.br (seção 8 do `deploy/GOOGLE_CLOUD.md`).
+
+## 7. Guardar as senhas no cofre do Google (2 min)
+
+Rode logo depois do passo 6 (ele usa a senha que você acabou de digitar).
+
+```bash
+gcloud iam service-accounts create flash-app --display-name="Flash Inova"
+gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$SA --role=roles/cloudsql.client --condition=None
+gcloud storage buckets add-iam-policy-binding gs://$PROJECT-arquivos --member=serviceAccount:$SA --role=roles/storage.objectAdmin
+
+printf '%s' "postgresql+psycopg://flash_app:$SENHA_APP@/flash_inova?host=/cloudsql/$CONN" | gcloud secrets create database-url --data-file=-
+printf '%s' "postgresql+psycopg://flash_owner:$SENHA_DONO@/flash_inova?host=/cloudsql/$CONN" | gcloud secrets create migrations-database-url --data-file=-
+openssl rand -hex 32 | tr -d '\n' | gcloud secrets create secret-key --data-file=-
+printf '%s' "$SENHA_SMTP" | gcloud secrets create smtp-password --data-file=-
+unset SENHA_SMTP
+for s in database-url migrations-database-url secret-key smtp-password; do
+  gcloud secrets add-iam-policy-binding $s --member=serviceAccount:$SA --role=roles/secretmanager.secretAccessor
+done
+```
+
+## 8. Montar o app (10 min)
+
+```bash
+cd ~/flash-inova && git pull
+gcloud artifacts repositories create flash --repository-format=docker --location=$REGION
+export IMAGE=$REGION-docker.pkg.dev/$PROJECT/flash/app:$(git rev-parse --short HEAD)
+gcloud builds submit --tag $IMAGE .
+```
+
+Termina com `SUCCESS`. Se aparecer erro, copie as últimas linhas e me mande.
+
+## 9. Criar as tabelas e o seu acesso de Consultor (5 min)
+
+```bash
+COMMON="--image=$IMAGE --region=$REGION --service-account=$SA --set-cloudsql-instances=$CONN"
+gcloud run jobs create migrar $COMMON --command=alembic --args=upgrade,head \
+  --set-secrets=MIGRATIONS_DATABASE_URL=migrations-database-url:latest --set-env-vars=APP_DB_ROLE=flash_app
+gcloud run jobs execute migrar --region=$REGION --wait
+```
+
+Agora o seu login (escolha uma senha forte; ela é digitada sem aparecer):
+
+```bash
+read -s -p "Senha do Consultor: " S; echo; printf '%s' "$S" | gcloud secrets create consultor-senha --data-file=-; unset S
+gcloud secrets add-iam-policy-binding consultor-senha --member=serviceAccount:$SA --role=roles/secretmanager.secretAccessor
+gcloud run jobs create criar-consultor $COMMON --command=python \
+  --args=-m,app.cli,criar-consultor,--nome,"Osti",--email,montezuma.osti@gmail.com \
+  --set-secrets=DATABASE_URL=database-url:latest,SECRET_KEY=secret-key:latest,CONSULTOR_SENHA=consultor-senha:latest \
+  --set-env-vars=BASE_DOMAIN=$DOMAIN
+gcloud run jobs execute criar-consultor --region=$REGION --wait
+gcloud run jobs delete criar-consultor --region=$REGION --quiet
+gcloud secrets delete consultor-senha --quiet
+```
+
+## 10. Colocar o app no ar (5 min)
+
+```bash
+gcloud run deploy flash-inova --image=$IMAGE --region=$REGION --service-account=$SA \
+  --add-cloudsql-instances=$CONN --allow-unauthenticated \
+  --min-instances=0 --max-instances=4 --memory=512Mi \
+  --set-secrets=DATABASE_URL=database-url:latest,SECRET_KEY=secret-key:latest,SMTP_PASSWORD=smtp-password:latest \
+  --set-env-vars=BASE_DOMAIN=$DOMAIN,APP_DB_ROLE=flash_app,STORAGE_BACKEND=gcs,GCS_BUCKET=$PROJECT-arquivos,EMAIL_BACKEND=smtp,SMTP_HOST=$SMTP_HOST,SMTP_PORT=$SMTP_PORT,SMTP_USER=$SMTP_USER,EMAIL_FROM=$EMAIL_FROM
+```
+
+No fim aparece um endereço `https://flash-inova-....run.app`. Abra-o: deve aparecer a tela de login.
+Entre com `montezuma.osti@gmail.com` e a senha do passo 9. Se entrou, o app, o banco e o cofre estão certos.
+
+## 11. Ligar o domínio flashinova.com.br (20 min + espera do DNS)
+
+```bash
+gcloud compute addresses create flash-ip --global
+export IP=$(gcloud compute addresses describe flash-ip --global --format='value(address)')
+
+gcloud dns managed-zones create flashinova --dns-name="$DOMAIN." --description="Flash Inova"
+gcloud dns record-sets create "$DOMAIN." --zone=flashinova --type=A --ttl=300 --rrdatas=$IP
+gcloud dns record-sets create "*.$DOMAIN." --zone=flashinova --type=A --ttl=300 --rrdatas=$IP
+
+gcloud certificate-manager dns-authorizations create flash-dns --domain=$DOMAIN
+CN=$(gcloud certificate-manager dns-authorizations describe flash-dns --format='value(dnsResourceRecord.name)')
+CV=$(gcloud certificate-manager dns-authorizations describe flash-dns --format='value(dnsResourceRecord.data)')
+gcloud dns record-sets create "$CN" --zone=flashinova --type=CNAME --ttl=300 --rrdatas="$CV"
+
+gcloud certificate-manager certificates create flash-cert --domains="$DOMAIN,*.$DOMAIN" --dns-authorizations=flash-dns
+gcloud certificate-manager maps create flash-map
+gcloud certificate-manager maps entries create flash-raiz --map=flash-map --certificates=flash-cert --hostname=$DOMAIN
+gcloud certificate-manager maps entries create flash-curinga --map=flash-map --certificates=flash-cert --hostname="*.$DOMAIN"
+
+gcloud compute network-endpoint-groups create flash-neg --region=$REGION --network-endpoint-type=serverless --cloud-run-service=flash-inova
+gcloud compute backend-services create flash-backend --global --load-balancing-scheme=EXTERNAL_MANAGED
+gcloud compute backend-services add-backend flash-backend --global --network-endpoint-group=flash-neg --network-endpoint-group-region=$REGION
+gcloud compute url-maps create flash-lb --default-service=flash-backend
+gcloud compute target-https-proxies create flash-https --url-map=flash-lb --certificate-map=flash-map
+gcloud compute forwarding-rules create flash-https --global --load-balancing-scheme=EXTERNAL_MANAGED \
+  --address=flash-ip --target-https-proxy=flash-https --ports=443
+
+gcloud dns managed-zones describe flashinova --format='value(nameServers)'
+```
+
+O último comando mostra 4 servidores (`ns-cloud-xx.googledomains.com`). Agora, **no registro.br**:
+
+1. Entre em https://registro.br › Painel › flashinova.com.br.
+2. Em **DNS**, clique em "Alterar servidores DNS" e troque pelos 4 servidores `ns-cloud-...` (sem o ponto final).
+3. Salve. A troca leva de alguns minutos a algumas horas.
+
+Para acompanhar o certificado (fica `ACTIVE` em até 1 hora depois da troca no registro.br):
+
+```bash
+gcloud certificate-manager certificates describe flash-cert --format='value(managed.state)'
+```
+
+Quando estiver `ACTIVE`, abra https://flashinova.com.br e entre de novo como Consultor.
+
+## 12. Primeiro cliente de teste (10 min, no navegador)
+
+1. Em https://flashinova.com.br, Área do Consultor › criar a instituição de teste com a sigla `teste`.
+2. Crie o primeiro administrador com outro e-mail seu. O convite chega por e-mail (confira o spam).
+3. Abra https://teste.flashinova.com.br, ative a conta e rode uma campanha pequena do começo ao fim.
+
+Por fim, feche o endereço `.run.app` para tudo passar pelo domínio:
+
+```bash
+gcloud run services update flash-inova --region=$REGION --ingress=internal-and-cloud-load-balancing
+```
+
+## 13. No dia a dia
+
+**Publicar uma versão nova** (depois de cada PR com merge):
+
+```bash
+cd ~/flash-inova && git pull
+export IMAGE=$REGION-docker.pkg.dev/$PROJECT/flash/app:$(git rev-parse --short HEAD)
+gcloud builds submit --tag $IMAGE .
+gcloud run jobs update migrar --image=$IMAGE --region=$REGION && gcloud run jobs execute migrar --region=$REGION --wait
+gcloud run services update flash-inova --image=$IMAGE --region=$REGION
+```
+
+**Pausar o banco** quando ficar semanas sem testar (para de cobrar o processamento; o disco continua):
+`gcloud sql instances patch flash-db --activation-policy=NEVER` e para voltar `--activation-policy=ALWAYS`.
+
+**No lançamento (2027):** banco maior (`gcloud sql instances patch flash-db --tier=db-g1-small`), e-mail pelo Amazon SES,
+teste de restauração do backup e monitoramento (seções 8 a 10 do `deploy/GOOGLE_CLOUD.md`).
+
+**Se algo der errado:** Cloud Run › flash-inova › Registros mostra os erros. Copie as linhas vermelhas e me mande.
