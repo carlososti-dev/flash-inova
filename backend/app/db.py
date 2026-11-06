@@ -33,6 +33,12 @@ def _apply_tenant_context(session: Session, transaction, connection) -> None:
     )
 
 
+def allow_all_tenants(session: Session) -> None:
+    """Libera, até o fim da sessão, a gravação em linhas sem hospital (ex.: a conta do Consultor)."""
+    session.info["all_tenants"] = True
+    session.execute(text("SELECT set_config('app.all_tenants', 'on', true)"))
+
+
 def get_db() -> Iterator[Session]:
     session = get_sessionmaker()()
     try:

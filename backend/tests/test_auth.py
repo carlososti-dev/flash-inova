@@ -134,3 +134,15 @@ def test_novo_link_invalida_o_anterior(client_for, make_tenant, make_user, outbo
     primeiro, segundo = (link_token(m.body) for m in outbox)
     assert c.post("/api/auth/reset-password", json={"token": primeiro, "password": "novaSenha9"}).status_code == 400
     assert c.post("/api/auth/reset-password", json={"token": segundo, "password": "novaSenha9"}).status_code == 200
+
+
+def test_consultor_redefine_a_senha_pelo_link(make_user, client_for, outbox):
+    """O Consultor não tem hospital: o link de redefinição precisa funcionar no endereço da plataforma."""
+    from app.models import Role
+    make_user("consultor@flash.com.br", None, Role.consultor)
+    client = client_for(None)
+    assert client.post("/api/auth/forgot-password", json={"email": "consultor@flash.com.br"}).status_code == 200
+    token = link_token(outbox[-1].body)
+    r = client.post("/api/auth/reset-password", json={"token": token, "password": "nova-senha-123"})
+    assert r.status_code == 200, r.text
+    assert login(client, "consultor@flash.com.br", "nova-senha-123").status_code == 200
