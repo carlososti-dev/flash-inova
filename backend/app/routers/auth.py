@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from .. import audit
 from ..accounts import consume_token, send_activation, send_reset
 from ..config import get_settings
+from ..db import allow_all_tenants
 from ..deps import RequestContext, get_context, get_current_user, require_active_tenant
 from ..models import ROLE_LABELS, AuthorizedMember, Role, TokenPurpose, User, UserStatus, utcnow
 from ..schemas import EmailIn, LoginIn, Me, Message, RegisterIn, SetPasswordIn, SiteInfo
@@ -108,6 +109,8 @@ def _set_password(ctx: RequestContext, body: SetPasswordIn, purpose: TokenPurpos
     user = consume_token(ctx.db, body.token, purpose)
     if user is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Link inválido ou expirado. Peça um novo.")
+    if user.tenant_id is None:
+        allow_all_tenants(ctx.db)  # o Consultor não pertence a um hospital; o RLS só o grava com esta liberação
     user.password_hash = hash_password(body.password)
     user.session_version += 1  # derruba sessões abertas com a senha antiga
     if user.email_verified_at is None:

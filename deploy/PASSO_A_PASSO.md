@@ -74,17 +74,19 @@ echo "Senha do dono: $SENHA_DONO"
 `db-f1-micro` é o menor banco, bom para testes. No lançamento, troque por `db-g1-small` (passo 13).
 
 Agora crie o usuário que o app usa. Ele **não pode** ser o dono das tabelas, senão a separação entre clientes deixa de valer.
-Primeiro rode e copie o comando que aparece:
+O bloco abaixo conecta no banco com a senha guardada no `~/flash.env` (sem precisar colar senha) e cria o usuário:
 
 ```bash
-echo "CREATE ROLE flash_app LOGIN PASSWORD '$SENHA_APP' NOSUPERUSER NOBYPASSRLS; GRANT CONNECT ON DATABASE flash_inova TO flash_app; GRANT USAGE ON SCHEMA public TO flash_app;"
+source ~/flash.env
+echo "CREATE ROLE flash_app LOGIN PASSWORD '$SENHA_APP' NOSUPERUSER NOBYPASSRLS; GRANT CONNECT ON DATABASE flash_inova TO flash_app; GRANT USAGE ON SCHEMA public TO flash_app;" \
+  | PGPASSWORD="$SENHA_DONO" gcloud sql connect flash-db --user=flash_owner --database=flash_inova
 ```
 
-Depois conecte (ele pede a "Senha do dono" mostrada acima), cole o comando copiado, dê Enter e saia com `\q`:
+Devem aparecer `CREATE ROLE`, `GRANT` e `GRANT`. Se der "password authentication failed", grave de novo a senha do dono
+e repita o bloco: `gcloud sql users set-password flash_owner --instance=flash-db --password="$SENHA_DONO"`.
 
-```bash
-gcloud sql connect flash-db --user=flash_owner --database=flash_inova
-```
+> Tudo que começa com `$` o Cloud Shell preenche sozinho com o que está no `~/flash.env`. Só troque o que está
+> em MAIÚSCULAS (como `COLE_AQUI` ou `SEU-PROVEDOR`).
 
 ## 5. Criar a pasta de arquivos (1 min)
 
@@ -100,6 +102,8 @@ gcloud storage buckets update gs://$PROJECT-arquivos --versioning
 
 Durante os testes, o app envia pelo e-mail corporativo da flashresponse. Peça ao provedor (ou veja no painel dele)
 o **servidor SMTP** e a **porta** (quase sempre 587). Crie, se puder, uma caixa só para isso, como `nao-responda@flashresponse.com.br`.
+
+Exemplo com o Titan (HostGator): `SMTP_HOST=smtp.titan.email`, porta 587.
 
 ```bash
 cat >> ~/flash.env <<'FIM'
@@ -208,6 +212,13 @@ gcloud compute target-https-proxies create flash-https --url-map=flash-lb --cert
 gcloud compute forwarding-rules create flash-https --global --load-balancing-scheme=EXTERNAL_MANAGED \
   --address=flash-ip --target-https-proxy=flash-https --ports=443
 
+# http:// redireciona para https://
+printf 'name: flash-http\ndefaultUrlRedirect:\n  httpsRedirect: true\n  redirectResponseCode: MOVED_PERMANENTLY_DEFAULT\n' > /tmp/redir.yaml
+gcloud compute url-maps import flash-http --global --source=/tmp/redir.yaml --quiet
+gcloud compute target-http-proxies create flash-http --url-map=flash-http
+gcloud compute forwarding-rules create flash-http --global --load-balancing-scheme=EXTERNAL_MANAGED \
+  --address=flash-ip --target-http-proxy=flash-http --ports=80
+
 gcloud dns managed-zones describe flashinova --format='value(nameServers)'
 ```
 
@@ -254,5 +265,17 @@ gcloud run services update flash-inova --image=$IMAGE --region=$REGION
 
 **No lançamento (2027):** banco maior (`gcloud sql instances patch flash-db --tier=db-g1-small`), e-mail pelo Amazon SES,
 teste de restauração do backup e monitoramento (seções 8 a 10 do `deploy/GOOGLE_CLOUD.md`).
+
+**Esqueci a senha do Consultor:** use "Esqueci minha senha" na tela de login (o link chega no e-mail do Consultor).
+Se o e-mail não chegar, troque direto no banco:
+
+```bash
+source ~/flash.env
+pip install --user -q argon2-cffi
+read -s -p "Nova senha do Consultor: " S; echo
+H=$(python3 -c "import sys; from argon2 import PasswordHasher; print(PasswordHasher().hash(sys.argv[1]))" "$S"); unset S
+echo "SET app.all_tenants = 'on'; UPDATE users SET password_hash = '$H', session_version = session_version + 1 WHERE role = 'consultor'; SELECT email FROM users WHERE role = 'consultor';" \
+  | PGPASSWORD="$SENHA_DONO" gcloud sql connect flash-db --user=flash_owner --database=flash_inova
+```
 
 **Se algo der errado:** Cloud Run › flash-inova › Registros mostra os erros. Copie as linhas vermelhas e me mande.
